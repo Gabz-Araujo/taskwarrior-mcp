@@ -4,6 +4,7 @@ export type {
   Status,
   AddOptions,
   ListFilter,
+  ListOptions,
   ModifyOptions,
 } from "./types.js";
 
