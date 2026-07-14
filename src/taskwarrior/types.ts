@@ -27,6 +27,7 @@ export const TaskSchema = z.object({
   annotations: z
     .array(z.object({ entry: z.string(), description: z.string() }))
     .optional(),
+  depends: z.array(z.string()).optional(),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
@@ -39,9 +40,18 @@ export type AddOptions = {
 };
 
 export type ListFilter = {
-  status?: Status;
+  status?: Status | "all";
   project?: string;
   tags?: string[];
+  dueBefore?: string;
+  dueAfter?: string;
+};
+
+export type ListSort = "urgency" | "due" | "entry";
+
+export type ListOptions = {
+  limit?: number;
+  sort?: ListSort;
 };
 
 export type ModifyOptions = {
