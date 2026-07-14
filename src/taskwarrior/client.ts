@@ -1,8 +1,15 @@
-import type { Task, AddOptions, ListFilter, ModifyOptions } from "./types.js";
+import type {
+  Task,
+  AddOptions,
+  ListFilter,
+  ModifyOptions,
+  ListOptions,
+} from "./types.js";
 import { TaskSchema } from "./types.js";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { buildListFilterArgs, sortTasks } from "./query.js";
 
 const execFile = promisify(execFileCallback);
 
@@ -44,7 +51,7 @@ export type TaskwarriorClientOptions = {
 export interface Taskwarrior {
   add(description: string, options?: AddOptions): Promise<Task>;
 
-  list(filter?: ListFilter): Promise<Task[]>;
+  list(filter?: ListFilter, options?: ListOptions): Promise<Task[]>;
 
   modify(uuid: string, options: ModifyOptions): Promise<Task>;
 
@@ -188,17 +195,22 @@ export class TaskwarriorClient implements Taskwarrior {
     return task;
   }
 
-  async list(filter?: ListFilter): Promise<Task[]> {
-    const filterArgs: string[] = [];
-    if (filter?.status) filterArgs.push(`status:${filter.status}`);
-    if (filter?.project) filterArgs.push(`project:${filter.project}`);
-    for (const tag of filter?.tags ?? []) filterArgs.push(`+${tag}`);
-
-    return this.export(filterArgs);
+  async list(filter?: ListFilter, options?: ListOptions): Promise<Task[]> {
+    const filterArgs = buildListFilterArgs(filter);
+    const tasks = await this.export(filterArgs);
+    const sorted = sortTasks(tasks, options?.sort);
+    return options?.limit !== undefined
+      ? sorted.slice(0, options.limit)
+      : sorted;
   }
 
   async modify(uuid: string, options: ModifyOptions): Promise<Task> {
-    this.assertUuid(uuid);
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(
+        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
+      );
+    }
 
     const mods = this.serializeAttributes(options);
     for (const tag of options.addTags ?? []) mods.push(`+${tag}`);
@@ -213,37 +225,52 @@ export class TaskwarriorClient implements Taskwarrior {
 
     await this.run(args);
 
-    const task = await this.getByUuid(uuid);
-    if (!task) {
+    const modifiedTask = await this.getByUuid(uuid);
+    if (!modifiedTask) {
       throw new TaskwarriorError(
         `Modified ${uuid} but it could not be read back`,
       );
     }
-    return task;
+
+    return modifiedTask;
   }
 
   async done(uuid: string): Promise<Task> {
-    this.assertUuid(uuid);
-    await this.run([...this.buildRcArgs(), uuid, "done"]);
-
     const task = await this.getByUuid(uuid);
     if (!task) {
+      throw new TaskwarriorError(
+        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
+      );
+    }
+    await this.run([...this.buildRcArgs(), uuid, "done"]);
+
+    const completedTask = await this.getByUuid(uuid);
+    if (!completedTask) {
       throw new TaskwarriorError(
         `Completed ${uuid} but it could not be read back`,
       );
     }
-    return task;
+
+    return completedTask;
   }
 
   async delete(uuid: string): Promise<Task> {
-    this.assertUuid(uuid);
-    await this.run([...this.buildRcArgs(), uuid, "delete"]);
-
     const task = await this.getByUuid(uuid);
     if (!task) {
-      throw new TaskwarriorError(`Deleted ${uuid} but it could not be read back`);
+      throw new TaskwarriorError(
+        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
+      );
     }
-    return task;
+    await this.run([...this.buildRcArgs(), uuid, "delete"]);
+
+    const deletedTask = await this.getByUuid(uuid);
+    if (!deletedTask) {
+      throw new TaskwarriorError(
+        `Deleted ${uuid} but it could not be read back`,
+      );
+    }
+
+    return deletedTask;
   }
 
   async getByUuid(uuid: string): Promise<Task | undefined> {
