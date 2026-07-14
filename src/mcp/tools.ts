@@ -4,6 +4,8 @@ import type { Taskwarrior } from "../taskwarrior/index.js";
 import { TaskwarriorError } from "../taskwarrior/index.js";
 import {
   addTaskShape,
+  annotateTaskShape,
+  denotateTaskShape,
   listTasksShape,
   modifyTaskShape,
   taskListOutputShape,
@@ -191,6 +193,46 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
             { sort: "urgency", limit: limit ?? 10 },
           ),
         (tasks) => ({ tasks }),
+      ),
+  );
+
+  server.registerTool(
+    "annotate_task",
+    {
+      title: "Annotate task",
+      description: "Add an annotation to a task.",
+      inputSchema: annotateTaskShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid, annotation }) =>
+      guard(
+        () => tw.annotate(uuid, annotation),
+        (task) => ({ task }),
+      ),
+  );
+
+  server.registerTool(
+    "denotate_task",
+    {
+      title: "Denotate task",
+      description: "Remove an annotation from a task.",
+      inputSchema: denotateTaskShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid, annotation }) =>
+      guard(
+        () => tw.denotate(uuid, annotation),
+        (task) => ({ task }),
       ),
   );
 }

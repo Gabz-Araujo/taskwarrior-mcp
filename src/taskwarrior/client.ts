@@ -65,6 +65,10 @@ export interface Taskwarrior {
   delete(uuid: string): Promise<Task>;
 
   getByUuid(uuid: string): Promise<Task | undefined>;
+
+  annotate(uuid: string, annotation: string): Promise<Task>;
+
+  denotate(uuid: string, annotation: string): Promise<Task>;
 }
 
 export class TaskwarriorClient implements Taskwarrior {
@@ -289,5 +293,39 @@ export class TaskwarriorClient implements Taskwarrior {
     this.assertUuid(uuid);
     const [task] = await this.export([uuid]);
     return task;
+  }
+
+  async annotate(uuid: string, annotation: string): Promise<Task> {
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    await this.run([...this.buildRcArgs(), uuid, "annotate", "--", annotation]);
+    const annotatedTask = await this.getByUuid(uuid);
+    if (!annotatedTask) {
+      throw new TaskwarriorError(
+        `Annotated ${uuid} but it could not be read back`,
+      );
+    }
+    return annotatedTask;
+  }
+
+  async denotate(uuid: string, annotation: string): Promise<Task> {
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    await this.run([...this.buildRcArgs(), uuid, "denotate", "--", annotation]);
+    const denotatedTask = await this.getByUuid(uuid);
+    if (!denotatedTask) {
+      throw new TaskwarriorError(
+        `Denotated ${uuid} but it could not be read back`,
+      );
+    }
+    return denotatedTask;
   }
 }

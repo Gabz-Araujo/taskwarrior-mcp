@@ -41,3 +41,26 @@ test("modify on an absent uuid throws a not-found error", async () => {
     "No task matches uuid 99999999-9999-9999-9999-999999999999",
   );
 });
+
+test("should create a annotation on task", async () => {
+  const task = await tw.add("test");
+  await tw.annotate(task.uuid, "test annotation");
+  const annotatedTask = await tw.getByUuid(task.uuid);
+  expect(annotatedTask?.annotations?.[0]?.description).toBe("test annotation");
+});
+
+test("should denotate on task", async () => {
+  const task = await tw.add("test");
+  await tw.annotate(task.uuid, "test denotation");
+  await tw.denotate(task.uuid, "test denotation");
+  const denotatedTask = await tw.getByUuid(task.uuid);
+  expect(denotatedTask?.annotations?.[0]?.description).toBeUndefined();
+});
+
+test("annotation text is literal, not parsed as attributes", async () => {
+  const task = await tw.add("host");
+  await tw.annotate(task.uuid, "project:evil");
+  const annotatedTask = await tw.getByUuid(task.uuid);
+  expect(annotatedTask?.project).toBeUndefined();
+  expect(annotatedTask?.annotations?.[0]?.description).toBe("project:evil");
+});

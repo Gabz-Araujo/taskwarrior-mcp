@@ -33,8 +33,10 @@ test("advertise all seven tools", async () => {
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
     "add_task",
+    "annotate_task",
     "complete_task",
     "delete_task",
+    "denotate_task",
     "get_task",
     "list_tasks",
     "modify_task",
@@ -133,6 +135,27 @@ test("modify_task", async () => {
   expect(text(res)).toContain(
     "Call list_tasks or get_task to find valid uuids",
   );
+});
+
+test("annotate_task", async () => {
+  const { client } = await connect();
+  const task = await client.callTool({
+    name: "add_task",
+    arguments: {
+      description: "test",
+    },
+  });
+
+  const res = await client.callTool({
+    name: "annotate_task",
+    arguments: {
+      uuid: sc(task).task.uuid,
+      annotation: "test annotation",
+    },
+  });
+
+  expect(res.isError).toBeFalsy();
+  expect(sc(res).task.annotations?.[0].description).toBe("test annotation");
 });
 
 test("an unexpected error is contained as generic isError and logged to stderr", async () => {

@@ -103,6 +103,34 @@ export class FakeTaskwarrior implements Taskwarrior {
   async getByUuid(uuid: string): Promise<Task | undefined> {
     return this.tasks.get(uuid);
   }
+
+  async annotate(uuid: string, annotation: string): Promise<Task> {
+    const task = this.tasks.get(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    task.annotations ??= [];
+    task.annotations.push({
+      entry: new Date().toISOString(),
+      description: annotation,
+    });
+    return task;
+  }
+
+  async denotate(uuid: string, annotation: string): Promise<Task> {
+    const task = this.tasks.get(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    task.annotations = task.annotations?.filter(
+      (a) => a.description !== annotation,
+    );
+    return task;
+  }
 }
 
 export class BrokenTaskwarrior extends FakeTaskwarrior {
