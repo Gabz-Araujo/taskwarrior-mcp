@@ -18,9 +18,12 @@ const TaskArraySchema = z.array(TaskSchema);
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type ErrorKind = "not-found" | "invalid-input" | "execution" | "unknown";
+
 export class TaskwarriorError extends Error {
   readonly exitCode: number | undefined;
   readonly stderr: string | undefined;
+  readonly kind: ErrorKind;
 
   constructor(
     message: string,
@@ -28,6 +31,7 @@ export class TaskwarriorError extends Error {
       exitCode?: number | undefined;
       stderr?: string | undefined;
       cause?: unknown;
+      kind?: ErrorKind;
     },
   ) {
     super(
@@ -37,6 +41,7 @@ export class TaskwarriorError extends Error {
     this.name = "TaskwarriorError";
     this.exitCode = options?.exitCode;
     this.stderr = options?.stderr;
+    this.kind = options?.kind ?? "unknown";
   }
 }
 
@@ -103,7 +108,9 @@ export class TaskwarriorClient implements Taskwarrior {
 
   private assertUuid(uuid: string): void {
     if (!UUID_RE.test(uuid)) {
-      throw new TaskwarriorError(`Invalid task uuid: ${JSON.stringify(uuid)}`);
+      throw new TaskwarriorError(`Invalid task uuid: ${JSON.stringify(uuid)}`, {
+        kind: "invalid-input",
+      });
     }
   }
 
@@ -124,7 +131,7 @@ export class TaskwarriorClient implements Taskwarrior {
       const exitCode = typeof e.code === "number" ? e.code : undefined;
       throw new TaskwarriorError(
         `\`task ${args.join(" ")}\` failed: ${stderr || e.message || "unknown error"}`,
-        { exitCode, stderr, cause: error },
+        { exitCode, stderr, cause: error, kind: "execution" },
       );
     }
   }
@@ -154,7 +161,7 @@ export class TaskwarriorClient implements Taskwarrior {
     } catch (error) {
       throw new TaskwarriorError(
         `task export returned invalid JSON: ${(error as Error).message}`,
-        { cause: error },
+        { cause: error, kind: "invalid-input" },
       );
     }
 
@@ -162,7 +169,7 @@ export class TaskwarriorClient implements Taskwarrior {
     if (!result.success) {
       throw new TaskwarriorError(
         `task export returned an unexpected shape: ${result.error.message}`,
-        { cause: result.error },
+        { cause: result.error, kind: "invalid-input" },
       );
     }
     return result.data;
@@ -183,6 +190,7 @@ export class TaskwarriorClient implements Taskwarrior {
     if (!match?.[1]) {
       throw new TaskwarriorError(
         `Unexpected output from "task add": ${JSON.stringify(output)}`,
+        { kind: "execution" },
       );
     }
 
@@ -190,6 +198,7 @@ export class TaskwarriorClient implements Taskwarrior {
     if (!task) {
       throw new TaskwarriorError(
         `Added "${description}" (uuid ${match[1]}) but it could not be read back`,
+        { kind: "execution" },
       );
     }
     return task;
@@ -207,9 +216,9 @@ export class TaskwarriorClient implements Taskwarrior {
   async modify(uuid: string, options: ModifyOptions): Promise<Task> {
     const task = await this.getByUuid(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
 
     const mods = this.serializeAttributes(options);
@@ -217,7 +226,9 @@ export class TaskwarriorClient implements Taskwarrior {
     for (const tag of options.deleteTags ?? []) mods.push(`-${tag}`);
 
     if (mods.length === 0 && options.description === undefined) {
-      throw new TaskwarriorError(`modify(${uuid}) called with no changes`);
+      throw new TaskwarriorError(`modify(${uuid}) called with no changes`, {
+        kind: "invalid-input",
+      });
     }
 
     const args = [...this.buildRcArgs(), uuid, "modify", ...mods];
@@ -238,9 +249,9 @@ export class TaskwarriorClient implements Taskwarrior {
   async done(uuid: string): Promise<Task> {
     const task = await this.getByUuid(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
     await this.run([...this.buildRcArgs(), uuid, "done"]);
 
@@ -257,9 +268,9 @@ export class TaskwarriorClient implements Taskwarrior {
   async delete(uuid: string): Promise<Task> {
     const task = await this.getByUuid(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
     await this.run([...this.buildRcArgs(), uuid, "delete"]);
 
@@ -267,6 +278,7 @@ export class TaskwarriorClient implements Taskwarrior {
     if (!deletedTask) {
       throw new TaskwarriorError(
         `Deleted ${uuid} but it could not be read back`,
+        { kind: "execution" },
       );
     }
 

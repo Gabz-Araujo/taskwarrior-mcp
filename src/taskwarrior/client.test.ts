@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { TaskwarriorClient } from "./client.js";
+import { TaskwarriorClient, TaskwarriorError } from "./client.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
@@ -31,10 +31,13 @@ test("limit caps the number returned", async () => {
   expect(tasks).toHaveLength(2);
 });
 
-test("modify on an absent uuid throws a teaching error", async () => {
-  await expect(
-    tw.modify("99999999-9999-9999-9999-999999999999", { priority: "H" }),
-  ).rejects.toThrow(
-    "No task matches uuid 99999999-9999-9999-9999-999999999999 - call list_tasks",
+test("modify on an absent uuid throws a not-found error", async () => {
+  const promise = tw.modify("99999999-9999-9999-9999-999999999999", {
+    priority: "H",
+  });
+  await expect(promise).rejects.toBeInstanceOf(TaskwarriorError);
+  await expect(promise).rejects.toHaveProperty("kind", "not-found");
+  await expect(promise).rejects.toThrow(
+    "No task matches uuid 99999999-9999-9999-9999-999999999999",
   );
 });

@@ -1,8 +1,12 @@
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { FakeTaskwarrior } from "../testing/fake-taskwarrior.js";
+import {
+  BrokenTaskwarrior,
+  FakeTaskwarrior,
+} from "../testing/fake-taskwarrior.js";
 import { createServer } from "./index.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
+import type { Taskwarrior } from "../taskwarrior/index.js";
 
 function sc(res: any): any {
   return res.structuredContent;
@@ -12,9 +16,8 @@ function text(res: any): string {
   return res.content[0].text;
 }
 
-async function connect() {
-  const fake = new FakeTaskwarrior();
-  const server = createServer(fake);
+async function connect(tw: Taskwarrior = new FakeTaskwarrior()) {
+  const server = createServer(tw);
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1.0.0" });
@@ -22,7 +25,7 @@ async function connect() {
     server.connect(serverTransport),
     client.connect(clientTransport),
   ]);
-  return { client, fake };
+  return { client };
 }
 
 test("advertise all seven tools", async () => {
@@ -124,7 +127,27 @@ test("modify_task", async () => {
   });
 
   expect(res.isError).toBeTruthy();
-  expect(text(res)).toBe(
-    "No task matches uuid 99999999-9999-9999-9999-999999999999 - call list_tasks or get_task to find valid uuids",
+  expect(text(res)).toContain(
+    "No task matches uuid 99999999-9999-9999-9999-999999999999",
   );
+  expect(text(res)).toContain(
+    "Call list_tasks or get_task to find valid uuids",
+  );
+});
+
+test("an unexpected error is contained as generic isError and logged to stderr", async () => {
+  const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  const { client } = await connect(new BrokenTaskwarrior());
+
+  const res = await client.callTool({
+    name: "get_task",
+    arguments: { uuid: "99999999-9999-9999-9999-999999999999" },
+  });
+
+  expect(res.isError).toBeTruthy();
+  expect(text(res)).toContain("An unexpected internal error occurred");
+  expect(text(res)).not.toContain("Boom");
+  expect(errorSpy).toHaveBeenCalled();
+
+  errorSpy.mockRestore();
 });

@@ -6,7 +6,7 @@ import type {
   ListOptions,
   ModifyOptions,
 } from "../taskwarrior/index.js";
-import { TaskwarriorError } from "../taskwarrior/client.js";
+import { TaskwarriorError } from "../taskwarrior/index.js";
 import { sortTasks } from "../taskwarrior/query.js";
 
 export class FakeTaskwarrior implements Taskwarrior {
@@ -50,9 +50,9 @@ export class FakeTaskwarrior implements Taskwarrior {
   async modify(uuid: string, options: ModifyOptions): Promise<Task> {
     const task = this.tasks.get(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
 
     const modifiedTask: Task = {
@@ -81,9 +81,9 @@ export class FakeTaskwarrior implements Taskwarrior {
   async done(uuid: string): Promise<Task> {
     const task = this.tasks.get(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
     task.status = "completed";
     return task;
@@ -92,9 +92,9 @@ export class FakeTaskwarrior implements Taskwarrior {
   async delete(uuid: string): Promise<Task> {
     const task = this.tasks.get(uuid);
     if (!task) {
-      throw new TaskwarriorError(
-        `No task matches uuid ${uuid} - call list_tasks or get_task to find valid uuids`,
-      );
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
     }
     task.status = "deleted";
     return task;
@@ -102,5 +102,11 @@ export class FakeTaskwarrior implements Taskwarrior {
 
   async getByUuid(uuid: string): Promise<Task | undefined> {
     return this.tasks.get(uuid);
+  }
+}
+
+export class BrokenTaskwarrior extends FakeTaskwarrior {
+  override async getByUuid(): Promise<Task | undefined> {
+    throw new Error("Boom");
   }
 }

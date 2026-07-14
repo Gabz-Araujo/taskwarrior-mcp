@@ -3,7 +3,7 @@ import { TaskSchema } from "../taskwarrior/types.js";
 
 const DATE_HINT =
   "taskwarrior date syntax - e.g. 'friday', 'tomorrow', '+1d', '+2w' or an ISO date";
-const PRIORITY = "taskwarrior priority - e.g. 'H', 'M' or 'L'";
+const PRIORITY = "Priority: 'H' (high), 'M' (medium), or 'L' (low)";
 
 export const addTaskShape = {
   description: z.string().min(1).describe("The task description text"),
@@ -11,7 +11,7 @@ export const addTaskShape = {
     .string()
     .optional()
     .describe("The project name, dotted for hierarchy, e.g. 'personal.work'"),
-  due: z.string().optional().describe(`Due Date ${DATE_HINT}`),
+  due: z.string().optional().describe(`Due date. ${DATE_HINT}`),
   priority: z.enum(["H", "M", "L"]).optional().describe(PRIORITY),
   tags: z
     .array(z.string())
@@ -48,11 +48,13 @@ export const listTasksShape = {
     .int()
     .positive()
     .optional()
-    .describe("Limit the number of results"),
+    .describe("Maximum number of tasks to return (default 100)"),
   sort: z
     .enum(["urgency", "due", "entry"])
     .optional()
-    .describe("Sort by one of these fields"),
+    .describe(
+      "Sort order: 'urgency' (most urgent first), 'due' (soonest deadline first), or 'entry' (oldest first).",
+    ),
 };
 
 export const whatsNextShape = {
@@ -63,23 +65,23 @@ export const whatsNextShape = {
   tags: z
     .array(z.string())
     .optional()
-    .describe("Tags to attach, without the leading +"),
+    .describe("Tags to filter by, without the leading +"),
   limit: z
     .number()
     .int()
     .positive()
     .optional()
-    .describe("Limit the number of results"),
+    .describe("Maximum number of tasks to return (default 10)"),
 };
 
 export const modifyTaskShape = {
-  uuid: z.string().describe("The task uuid"),
+  uuid: z.string().describe("The task uuid, as returned by list_tasks or get_task"),
   description: z.string().optional().describe("The task description text"),
   project: z
     .string()
     .optional()
     .describe("The project name, dotted for hierarchy, e.g. 'personal.work'"),
-  due: z.string().optional().describe(`Due Date ${DATE_HINT}`),
+  due: z.string().optional().describe(`Due date. ${DATE_HINT}`),
   priority: z.enum(["H", "M", "L"]).optional().describe(PRIORITY),
   addTags: z
     .array(z.string())
@@ -96,5 +98,5 @@ export const taskNullableOutputShape = { task: TaskSchema.nullable() };
 export const taskListOutputShape = { tasks: z.array(TaskSchema) };
 
 export const uuidShape = {
-  uuid: z.string().describe("The task uuid"),
+  uuid: z.string().describe("The task uuid, as returned by list_tasks or get_task"),
 };

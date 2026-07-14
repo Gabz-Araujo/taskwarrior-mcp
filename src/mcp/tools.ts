@@ -13,6 +13,12 @@ import {
   whatsNextShape,
 } from "./schemas.js";
 
+const GUIDANCE: Partial<Record<string, string>> = {
+  "not-found": "Call list_tasks or get_task to find valid uuids",
+  "invalid-input": "Fix the input and try again",
+  execution: "Check the taskwarrior logs for more information",
+};
+
 function compact<T extends object>(
   obj: T,
 ): { [K in keyof T]: Exclude<T[K], undefined> } {
@@ -41,8 +47,12 @@ async function guard<T>(
   try {
     return ok(shape(await fn()));
   } catch (error) {
-    if (error instanceof TaskwarriorError) return fail(error.message);
-    throw error;
+    if (error instanceof TaskwarriorError) {
+      const hint = error.kind in GUIDANCE ? GUIDANCE[error.kind] : undefined;
+      return fail(error.message + (hint ? ` (${hint})` : ""));
+    }
+    console.error("Unhandled error in tool handler:", error);
+    return fail("An unexpected internal error occurred.");
   }
 }
 
@@ -61,7 +71,10 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       },
     },
     async ({ description, ...options }) =>
-      guard(() => tw.add(description, compact(options)), (task) => ({ task })),
+      guard(
+        () => tw.add(description, compact(options)),
+        (task) => ({ task }),
+      ),
   );
 
   server.registerTool(
@@ -69,14 +82,16 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     {
       title: "List tasks",
       description:
-        "List tasks, optionally filtered by status, project, or tags.",
+        "List tasks with optional filtering (status, project, tags, due range), " +
+        "sorting, and a result limit. Defaults to pending tasks and returns at " +
+        "most 100 unless a smaller or larger limit is given.",
       inputSchema: listTasksShape,
       outputSchema: taskListOutputShape,
       annotations: { readOnlyHint: true },
     },
     async ({ limit, sort, ...filter }) =>
       guard(
-        () => tw.list(compact(filter), compact({ limit, sort })),
+        () => tw.list(compact(filter), compact({ limit: limit ?? 100, sort })),
         (tasks) => ({ tasks }),
       ),
   );
@@ -95,7 +110,10 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       },
     },
     async ({ uuid, ...options }) =>
-      guard(() => tw.modify(uuid, compact(options)), (task) => ({ task })),
+      guard(
+        () => tw.modify(uuid, compact(options)),
+        (task) => ({ task }),
+      ),
   );
 
   server.registerTool(
@@ -111,14 +129,19 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
         idempotentHint: false,
       },
     },
-    async ({ uuid }) => guard(() => tw.done(uuid), (task) => ({ task })),
+    async ({ uuid }) =>
+      guard(
+        () => tw.done(uuid),
+        (task) => ({ task }),
+      ),
   );
 
   server.registerTool(
     "delete_task",
     {
       title: "Delete task",
-      description: "Delete a task.",
+      description:
+        "Delete a task (soft delete — the task is marked deleted, not purged).",
       inputSchema: uuidShape,
       outputSchema: taskOutputShape,
       annotations: {
@@ -127,7 +150,11 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
         idempotentHint: true,
       },
     },
-    async ({ uuid }) => guard(() => tw.delete(uuid), (task) => ({ task })),
+    async ({ uuid }) =>
+      guard(
+        () => tw.delete(uuid),
+        (task) => ({ task }),
+      ),
   );
 
   server.registerTool(
@@ -140,14 +167,18 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       annotations: { readOnlyHint: true },
     },
     async ({ uuid }) =>
-      guard(() => tw.getByUuid(uuid), (task) => ({ task: task ?? null })),
+      guard(
+        () => tw.getByUuid(uuid),
+        (task) => ({ task: task ?? null }),
+      ),
   );
 
   server.registerTool(
     "whats_next",
     {
       title: "What's next",
-      description: "Get the list of tasks to do next ordered by urgency.",
+      description:
+        "Get the highest-urgency pending tasks to focus on next, optionally scoped by project or tags.",
       inputSchema: whatsNextShape,
       outputSchema: taskListOutputShape,
       annotations: { readOnlyHint: true },
