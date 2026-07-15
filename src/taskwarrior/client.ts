@@ -5,7 +5,7 @@ import type {
   ModifyOptions,
   ListOptions,
 } from "./types.js";
-import { TaskSchema } from "./types.js";
+import { TaskSchema, UUID_RE } from "./types.js";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -14,9 +14,6 @@ import { buildListFilterArgs, sortTasks } from "./query.js";
 const execFile = promisify(execFileCallback);
 
 const TaskArraySchema = z.array(TaskSchema);
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ErrorKind = "not-found" | "invalid-input" | "execution" | "unknown";
 
@@ -73,6 +70,10 @@ export interface Taskwarrior {
   start(uuid: string): Promise<Task>;
 
   stop(uuid: string): Promise<Task>;
+
+  addDependencies(uuid: string, dependencies: string[]): Promise<Task>;
+
+  removeDependencies(uuid: string, dependencies: string[]): Promise<Task>;
 }
 
 export class TaskwarriorClient implements Taskwarrior {
@@ -148,11 +149,19 @@ export class TaskwarriorClient implements Taskwarrior {
     project?: string;
     due?: string;
     priority?: string;
+    addDependencies?: string[];
+    deleteDependencies?: string[];
   }): string[] {
     const args: string[] = [];
     if (opts.project) args.push(`project:${opts.project}`);
     if (opts.due) args.push(`due:${opts.due}`);
     if (opts.priority) args.push(`priority:${opts.priority}`);
+    if (opts.addDependencies?.length)
+      args.push(`depends:${opts.addDependencies.join(",")}`);
+    if (opts.deleteDependencies?.length)
+      args.push(
+        `depends:${opts.deleteDependencies.map((d) => `-${d}`).join(",")}`,
+      );
     return args;
   }
 
@@ -365,5 +374,50 @@ export class TaskwarriorClient implements Taskwarrior {
       );
     }
     return stoppedTask;
+  }
+
+  async addDependencies(uuid: string, dependencies: string[]): Promise<Task> {
+    const verified = dependencies.map((dependency) => {
+      this.assertUuid(dependency);
+      return dependency;
+    });
+
+    try {
+      return await this.modify(uuid, { addDependencies: verified });
+    } catch (error) {
+      if (
+        error instanceof TaskwarriorError &&
+        /circular dependency/i.test(error.message)
+      ) {
+        throw new TaskwarriorError(
+          `Adding these dependencies to ${uuid} would create a circular dependency`,
+          { kind: "invalid-input", cause: error },
+        );
+      }
+      throw error;
+    }
+  }
+
+  async removeDependencies(
+    uuid: string,
+    dependencies: string[],
+  ): Promise<Task> {
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+
+    const verified = dependencies
+      .map((dependency) => {
+        this.assertUuid(dependency);
+        return dependency;
+      })
+      .filter((dependency) => task.depends?.includes(dependency));
+
+    if (verified.length === 0) return task;
+
+    return this.modify(uuid, { deleteDependencies: verified });
   }
 }

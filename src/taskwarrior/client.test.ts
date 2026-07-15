@@ -80,3 +80,52 @@ test("should stop a task", async () => {
   expect(stoppedTask?.start).toBeUndefined();
   expect(stoppedTask?.status).toBe("pending");
 });
+
+test("should add dependencies to a task", async () => {
+  const task = await tw.add("test");
+  await tw.addDependencies(task.uuid, [
+    "99999999-9999-9999-9999-999999999990",
+    "99999999-9999-9999-9999-999999999991",
+  ]);
+  const modifiedTask = await tw.getByUuid(task.uuid);
+  expect(modifiedTask?.depends).toEqual([
+    "99999999-9999-9999-9999-999999999990",
+    "99999999-9999-9999-9999-999999999991",
+  ]);
+});
+
+test("should remove dependencies from a task", async () => {
+  const task = await tw.add("test");
+  await tw.addDependencies(task.uuid, [
+    "99999999-9999-9999-9999-999999999990",
+    "99999999-9999-9999-9999-999999999991",
+  ]);
+  await tw.removeDependencies(task.uuid, [
+    "99999999-9999-9999-9999-999999999990",
+  ]);
+  const modifiedTask = await tw.getByUuid(task.uuid);
+  expect(modifiedTask?.depends).toEqual([
+    "99999999-9999-9999-9999-999999999991",
+  ]);
+});
+
+test("removing a non-present dependency leaves existing ones intact", async () => {
+  const task = await tw.add("test");
+  await tw.addDependencies(task.uuid, ["99999999-9999-9999-9999-999999999990"]);
+  await tw.removeDependencies(task.uuid, [
+    "99999999-9999-9999-9999-999999999991",
+  ]);
+  const modifiedTask = await tw.getByUuid(task.uuid);
+  expect(modifiedTask?.depends).toEqual([
+    "99999999-9999-9999-9999-999999999990",
+  ]);
+});
+
+test("adding a dependency that creates a cycle throws invalid-input", async () => {
+  const a = await tw.add("cycle a");
+  const b = await tw.add("cycle b");
+  await tw.addDependencies(a.uuid, [b.uuid]);
+  const promise = tw.addDependencies(b.uuid, [a.uuid]);
+  await expect(promise).rejects.toHaveProperty("kind", "invalid-input");
+  await expect(promise).rejects.toThrow(/circular dependency/i);
+});

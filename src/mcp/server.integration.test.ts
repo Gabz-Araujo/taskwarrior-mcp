@@ -85,15 +85,7 @@ test("delete_task returns soft-deleted task", async () => {
   );
 });
 
-test("get_task doesnt accept ijection", async () => {
-  await client.callTool({
-    name: "add_task",
-    arguments: {
-      description: "Soft-deleted task",
-      priority: "M",
-    },
-  });
-
+test("get_task rejects an invalid uuid at the schema boundary", async () => {
   const res = await client.callTool({
     name: "get_task",
     arguments: {
@@ -101,5 +93,6 @@ test("get_task doesnt accept ijection", async () => {
     },
   });
 
-  expect(text(res)).toContain("Invalid task uuid");
+  expect(res.isError).toBeTruthy();
+  expect(text(res)).toMatch(/valid task uuid/i);
 });

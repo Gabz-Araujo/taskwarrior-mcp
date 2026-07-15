@@ -32,6 +32,7 @@ test("advertise all tools", async () => {
   const { client } = await connect();
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
+    "add_dependencies",
     "add_task",
     "annotate_task",
     "complete_task",
@@ -40,6 +41,7 @@ test("advertise all tools", async () => {
     "get_task",
     "list_tasks",
     "modify_task",
+    "remove_dependencies",
     "start_task",
     "stop_task",
     "whats_next",

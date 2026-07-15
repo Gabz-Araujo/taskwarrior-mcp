@@ -3,11 +3,13 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Taskwarrior } from "../taskwarrior/index.js";
 import { TaskwarriorError } from "../taskwarrior/index.js";
 import {
+  addDependenciesShape,
   addTaskShape,
   annotateTaskShape,
   denotateTaskShape,
   listTasksShape,
   modifyTaskShape,
+  removeDependenciesShape,
   taskListOutputShape,
   taskNullableOutputShape,
   taskOutputShape,
@@ -272,6 +274,47 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     async ({ uuid }) =>
       guard(
         () => tw.stop(uuid),
+        (task) => ({ task }),
+      ),
+  );
+
+  server.registerTool(
+    "add_dependencies",
+    {
+      title: "Add dependencies",
+      description:
+        "Make a task depend on one or more other tasks (blocked until they are done).",
+      inputSchema: addDependenciesShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid, dependencies }) =>
+      guard(
+        () => tw.addDependencies(uuid, dependencies),
+        (task) => ({ task }),
+      ),
+  );
+
+  server.registerTool(
+    "remove_dependencies",
+    {
+      title: "Remove dependencies",
+      description: "Remove one or more dependencies from a task.",
+      inputSchema: removeDependenciesShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid, dependencies }) =>
+      guard(
+        () => tw.removeDependencies(uuid, dependencies),
         (task) => ({ task }),
       ),
   );

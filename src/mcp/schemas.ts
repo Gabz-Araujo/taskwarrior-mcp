@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { TaskSchema } from "../taskwarrior/types.js";
+import { TaskSchema, UUID_RE } from "../taskwarrior/types.js";
 
 const DATE_HINT =
   "taskwarrior date syntax - e.g. 'friday', 'tomorrow', '+1d', '+2w' or an ISO date";
 const PRIORITY = "Priority: 'H' (high), 'M' (medium), or 'L' (low)";
+const uuidField = z.string().regex(UUID_RE, "Must be a valid task uuid");
 
 export const addTaskShape = {
   description: z.string().min(1).describe("The task description text"),
@@ -75,9 +76,9 @@ export const whatsNextShape = {
 };
 
 export const modifyTaskShape = {
-  uuid: z
-    .string()
-    .describe("The task uuid, as returned by list_tasks or get_task"),
+  uuid: uuidField.describe(
+    "The task uuid, as returned by list_tasks or get_task",
+  ),
   description: z.string().optional().describe("The task description text"),
   project: z
     .string()
@@ -96,17 +97,33 @@ export const modifyTaskShape = {
 };
 
 export const annotateTaskShape = {
-  uuid: z
-    .string()
-    .describe("The task uuid, as returned by list_tasks or get_task"),
+  uuid: uuidField.describe(
+    "The task uuid, as returned by list_tasks or get_task",
+  ),
   annotation: z.string().describe("The annotation text"),
 };
 
 export const denotateTaskShape = {
-  uuid: z
-    .string()
-    .describe("The task uuid, as returned by list_tasks or get_task"),
+  uuid: uuidField.describe(
+    "The task uuid, as returned by list_tasks or get_task",
+  ),
   annotation: z.string().describe("The annotation text to be removed"),
+};
+
+export const addDependenciesShape = {
+  uuid: uuidField.describe("The task that will depend on the others"),
+  dependencies: z
+    .array(uuidField)
+    .min(1)
+    .describe("Uuids of tasks this task should depend on"),
+};
+
+export const removeDependenciesShape = {
+  uuid: uuidField.describe("The task to remove dependencies from"),
+  dependencies: z
+    .array(uuidField)
+    .min(1)
+    .describe("Uuids of dependencies to remove"),
 };
 
 export const taskOutputShape = { task: TaskSchema };
@@ -114,7 +131,7 @@ export const taskNullableOutputShape = { task: TaskSchema.nullable() };
 export const taskListOutputShape = { tasks: z.array(TaskSchema) };
 
 export const uuidShape = {
-  uuid: z
-    .string()
-    .describe("The task uuid, as returned by list_tasks or get_task"),
+  uuid: uuidField.describe(
+    "The task uuid, as returned by list_tasks or get_task",
+  ),
 };

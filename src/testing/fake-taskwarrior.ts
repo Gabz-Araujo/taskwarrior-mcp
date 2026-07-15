@@ -73,6 +73,13 @@ export class FakeTaskwarrior implements Taskwarrior {
       modifiedTask.tags = Array.from(tags);
     }
 
+    if (options.addDependencies?.length || options.deleteDependencies?.length) {
+      const deps = new Set(modifiedTask.depends ?? []);
+      for (const d of options.addDependencies ?? []) deps.add(d);
+      for (const d of options.deleteDependencies ?? []) deps.delete(d);
+      modifiedTask.depends = [...deps];
+    }
+
     this.tasks.set(uuid, modifiedTask);
 
     return modifiedTask;
@@ -152,6 +159,17 @@ export class FakeTaskwarrior implements Taskwarrior {
     }
     delete task.start;
     return task;
+  }
+
+  async addDependencies(uuid: string, dependencies: string[]): Promise<Task> {
+    return this.modify(uuid, { addDependencies: dependencies });
+  }
+
+  async removeDependencies(
+    uuid: string,
+    dependencies: string[],
+  ): Promise<Task> {
+    return this.modify(uuid, { deleteDependencies: dependencies });
   }
 }
 
