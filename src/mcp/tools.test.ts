@@ -28,7 +28,7 @@ async function connect(tw: Taskwarrior = new FakeTaskwarrior()) {
   return { client };
 }
 
-test("advertise all seven tools", async () => {
+test("advertise all tools", async () => {
   const { client } = await connect();
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
@@ -40,6 +40,8 @@ test("advertise all seven tools", async () => {
     "get_task",
     "list_tasks",
     "modify_task",
+    "start_task",
+    "stop_task",
     "whats_next",
   ]);
 });
@@ -156,6 +158,26 @@ test("annotate_task", async () => {
 
   expect(res.isError).toBeFalsy();
   expect(sc(res).task.annotations?.[0].description).toBe("test annotation");
+});
+
+test("start_task", async () => {
+  const { client } = await connect();
+  const task = await client.callTool({
+    name: "add_task",
+    arguments: {
+      description: "test",
+    },
+  });
+
+  const res = await client.callTool({
+    name: "start_task",
+    arguments: {
+      uuid: sc(task).task.uuid,
+    },
+  });
+
+  expect(res.isError).toBeFalsy();
+  expect(sc(res).task.status).toBe("pending");
 });
 
 test("an unexpected error is contained as generic isError and logged to stderr", async () => {

@@ -131,6 +131,28 @@ export class FakeTaskwarrior implements Taskwarrior {
     );
     return task;
   }
+
+  async start(uuid: string): Promise<Task> {
+    const task = this.tasks.get(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    task.start = new Date().toISOString();
+    return task;
+  }
+
+  async stop(uuid: string): Promise<Task> {
+    const task = this.tasks.get(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    delete task.start;
+    return task;
+  }
 }
 
 export class BrokenTaskwarrior extends FakeTaskwarrior {

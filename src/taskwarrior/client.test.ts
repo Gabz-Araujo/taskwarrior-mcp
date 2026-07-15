@@ -64,3 +64,19 @@ test("annotation text is literal, not parsed as attributes", async () => {
   expect(annotatedTask?.project).toBeUndefined();
   expect(annotatedTask?.annotations?.[0]?.description).toBe("project:evil");
 });
+
+test("should start a task", async () => {
+  const task = await tw.add("test");
+  await tw.start(task.uuid);
+  const startedTask = await tw.getByUuid(task.uuid);
+  expect(startedTask?.start).toBeDefined();
+});
+
+test("should stop a task", async () => {
+  const task = await tw.add("test");
+  await tw.start(task.uuid);
+  await tw.stop(task.uuid);
+  const stoppedTask = await tw.getByUuid(task.uuid);
+  expect(stoppedTask?.start).toBeUndefined();
+  expect(stoppedTask?.status).toBe("pending");
+});

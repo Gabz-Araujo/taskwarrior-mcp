@@ -69,6 +69,10 @@ export interface Taskwarrior {
   annotate(uuid: string, annotation: string): Promise<Task>;
 
   denotate(uuid: string, annotation: string): Promise<Task>;
+
+  start(uuid: string): Promise<Task>;
+
+  stop(uuid: string): Promise<Task>;
 }
 
 export class TaskwarriorClient implements Taskwarrior {
@@ -327,5 +331,39 @@ export class TaskwarriorClient implements Taskwarrior {
       );
     }
     return denotatedTask;
+  }
+
+  async start(uuid: string): Promise<Task> {
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    await this.run([...this.buildRcArgs(), uuid, "start"]);
+    const startedTask = await this.getByUuid(uuid);
+    if (!startedTask) {
+      throw new TaskwarriorError(
+        `Started ${uuid} but it could not be read back`,
+      );
+    }
+    return startedTask;
+  }
+
+  async stop(uuid: string): Promise<Task> {
+    const task = await this.getByUuid(uuid);
+    if (!task) {
+      throw new TaskwarriorError(`No task matches uuid ${uuid}`, {
+        kind: "not-found",
+      });
+    }
+    await this.run([...this.buildRcArgs(), uuid, "stop"]);
+    const stoppedTask = await this.getByUuid(uuid);
+    if (!stoppedTask) {
+      throw new TaskwarriorError(
+        `Stopped ${uuid} but it could not be read back`,
+      );
+    }
+    return stoppedTask;
   }
 }

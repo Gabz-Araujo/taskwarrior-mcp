@@ -235,4 +235,44 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
         (task) => ({ task }),
       ),
   );
+
+  server.registerTool(
+    "start_task",
+    {
+      title: "Start Task",
+      description: "Start a task",
+      inputSchema: uuidShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid }) =>
+      guard(
+        () => tw.start(uuid),
+        (task) => ({ task }),
+      ),
+  );
+
+  server.registerTool(
+    "stop_task",
+    {
+      title: "Stop Task",
+      description: "Stop a task",
+      inputSchema: uuidShape,
+      outputSchema: taskOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ uuid }) =>
+      guard(
+        () => tw.stop(uuid),
+        (task) => ({ task }),
+      ),
+  );
 }
