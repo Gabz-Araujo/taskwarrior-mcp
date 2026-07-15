@@ -20,6 +20,7 @@
           # nixpkgs 24.14.0 vs .nvmrc's 24.13.0 — patch drift is harmless.
           nodejs_24
           taskwarrior3
+          timewarrior
         ];
       };
     });

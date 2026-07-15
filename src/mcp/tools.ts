@@ -13,9 +13,12 @@ import {
   taskListOutputShape,
   taskNullableOutputShape,
   taskOutputShape,
+  timeSummaryOutputShape,
+  timeSummaryShape,
   uuidShape,
   whatsNextShape,
 } from "./schemas.js";
+import type { Timewarrior } from "../timewarrior/client.js";
 
 const GUIDANCE: Partial<Record<string, string>> = {
   "not-found": "Call list_tasks or get_task to find valid uuids",
@@ -316,6 +319,28 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       guard(
         () => tw.removeDependencies(uuid, dependencies),
         (task) => ({ task }),
+      ),
+  );
+}
+
+export function registerTimeTools(server: McpServer, tw: Timewarrior): void {
+  server.registerTool(
+    "get_time_summary",
+    {
+      title: "Get time summary",
+      description:
+        "Get a summary of time intervals, optionally scoped by tags.",
+      inputSchema: timeSummaryShape,
+      outputSchema: timeSummaryOutputShape,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ from, to, tags }) =>
+      guard(
+        () =>
+          tw.getSummary(
+            compact({ from: from ?? undefined, to: to ?? undefined, tags }),
+          ),
+        (summary) => ({ ...summary }),
       ),
   );
 }

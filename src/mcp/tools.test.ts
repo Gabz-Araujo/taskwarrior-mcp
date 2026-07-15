@@ -7,6 +7,8 @@ import { createServer } from "./index.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { expect, test, vi } from "vitest";
 import type { Taskwarrior } from "../taskwarrior/index.js";
+import type { Timewarrior } from "../timewarrior/client.js";
+import { FakeTimewarrior } from "../testing/fake-timewarrior.js";
 
 function sc(res: any): any {
   return res.structuredContent;
@@ -16,8 +18,11 @@ function text(res: any): string {
   return res.content[0].text;
 }
 
-async function connect(tw: Taskwarrior = new FakeTaskwarrior()) {
-  const server = createServer(tw);
+async function connect(
+  tw: Taskwarrior = new FakeTaskwarrior(),
+  timewarrior?: Timewarrior,
+) {
+  const server = createServer(tw, timewarrior ? { timewarrior } : {});
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1.0.0" });
@@ -197,4 +202,28 @@ test("an unexpected error is contained as generic isError and logged to stderr",
   expect(errorSpy).toHaveBeenCalled();
 
   errorSpy.mockRestore();
+});
+
+test("get_time_summary is absent when no timewarrior is configured", async () => {
+  const { client } = await connect();
+  const { tools } = await client.listTools();
+  expect(tools.map((t) => t.name)).not.toContain("get_time_summary");
+});
+
+test("get_time_summary is present and works when timewarrior is configured", async () => {
+  const fakeTimew = new FakeTimewarrior([
+    { id: "1", start: 0, end: 3600, tags: ["coding"] },
+  ]);
+  const { client } = await connect(new FakeTaskwarrior(), fakeTimew);
+
+  const { tools } = await client.listTools();
+  expect(tools.map((t) => t.name)).toContain("get_time_summary");
+
+  const res = await client.callTool({
+    name: "get_time_summary",
+    arguments: { from: "2020-01-01", to: "2030-01-01" },
+  });
+  expect(res.isError).toBeFalsy();
+  expect(sc(res).total).toBe(3600);
+  expect(sc(res).byTag).toEqual({ coding: 3600 });
 });

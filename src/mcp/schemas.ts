@@ -135,3 +135,19 @@ export const uuidShape = {
     "The task uuid, as returned by list_tasks or get_task",
   ),
 };
+
+export const timeSummaryShape = {
+  from: z.string().describe("The start of the summary interval"),
+  to: z.string().describe("The end of the summary interval"),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Only time tagged with all of these (a task project name works too — the hook tags intervals with it).",
+    ),
+};
+
+export const timeSummaryOutputShape = {
+  total: z.number(),
+  byTag: z.record(z.string(), z.number()),
+};
