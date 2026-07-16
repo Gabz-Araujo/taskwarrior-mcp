@@ -20,7 +20,7 @@ export async function createServer(
     version: options.version ?? "0.0.0",
   });
   registerTools(server, tw, udas);
-  registerPrompts(server, tw);
+  registerPrompts(server, tw, udas);
   registerResources(server, tw, udas);
   if (options.timewarrior) {
     registerTimeTools(server, options.timewarrior);
