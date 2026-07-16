@@ -1,32 +1,28 @@
 # Taskwarrior MCP — Roadmap
 
-_Last updated: 2026-07-14_
+_Last updated: 2026-07-15_
 
 ## Status
 
-**M3-close — done.** The differentiator plus the foundation-quality layer:
+**Done: M3-close, M4, M4.5.**
 
-- `whats_next` (urgency-ordered, scopable) and an enriched `list` (sort / limit / due-range / `status:"all"`, default-pending)
-- structured output (`outputSchema` + `structuredContent`), tool annotations, self-describing schemas
-- error handling: `kind`-classified domain errors → model-facing guidance in the MCP layer; unexpected errors contained as a generic `isError` and logged to stderr; MCP tool names kept out of the domain layer
-- server version inherited from `package.json`
-- four-tier test suite (pure unit, client integration, in-memory MCP, end-to-end)
+- **M3-close** — `whats_next` + foundation layer: enriched `list` (sort/limit/due-range/`all`, default-pending), structured output, tool annotations, self-describing schemas, `kind`-classified errors with model guidance, contained unexpected errors, version from `package.json`.
+- **M4** — annotations (`annotate`/`denotate`), dependencies (`add_dependencies`/`remove_dependencies`, cycle-checked), `start`/`stop`.
+- **M4.5** — Timewarrior as an optional capability: read-only wrapper, `get_time_summary`, startup detection + conditional registration. Setup aid (`scripts/install-timewarrior-hook.sh`) + README shipped.
+
+Four-tier test suite (pure unit, client integration, in-memory MCP, end-to-end).
 
 ## Milestones
 
-### M4 — Domain completeness
-- `annotate` / `denotate` (task annotations)
-- dependencies (expose as `modify` options `addDepends`/`removeDepends`; `depends` already on `TaskSchema`)
-- `start` / `stop` (the task-side of time tracking)
-- each: wrapper method + tool, same TDD rhythm
+### ✅ M4 — Domain completeness (done)
+- `annotate` / `denotate`, dependencies (dedicated tools, cycle-checked), `start` / `stop`.
+- Implemented as dedicated wrapper methods + tools (dependencies ended up as their own tools, not `modify` options, to preserve cycle detection + safe removal).
 
-### M4.5 — Time reporting via Timewarrior (first optional capability)
-- A separate `Timewarrior` wrapper over `timew` (`timew export` gives JSON), same disciplines as the Taskwarrior wrapper.
-- A `time_summary` tool ("where did my hours go, by project/tag").
-- Introduces the **capability-provider pattern** (see below) — isolated here so it's learned cleanly.
-- Rationale: Taskwarrior only records start/end stamps; real duration/aggregation lives in Timewarrior (wired via the `on-modify` hook). Building time math on raw stamps would reinvent what `timew` exists for.
+### ✅ M4.5 — Time reporting via Timewarrior (done — first optional capability)
+- Read-only `Timewarrior` wrapper over `timew export`; `get_time_summary` tool.
+- Established the **capability-provider pattern** (see below): startup detection + conditional registration.
 
-### M5 — MCP-native workflows (new MCP concepts)
+### M5 — MCP-native workflows (new MCP concepts) ← next
 - **Prompts**: `weekly-review`, `daily-triage` — packaged GTD reviews that assemble pending/overdue/completed context.
 - **Resources**: project / burndown reports the client can attach passively (no tool call).
 - Sequenced before M6 because prompts/resources are the unlearned MCP features and they make GTD/PARA packaging easier.
