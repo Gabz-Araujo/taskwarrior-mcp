@@ -149,6 +149,7 @@ export class TaskwarriorClient implements Taskwarrior {
     project?: string;
     due?: string;
     priority?: string;
+    recur?: string;
     addDependencies?: string[];
     deleteDependencies?: string[];
   }): string[] {
@@ -156,6 +157,7 @@ export class TaskwarriorClient implements Taskwarrior {
     if (opts.project) args.push(`project:${opts.project}`);
     if (opts.due) args.push(`due:${opts.due}`);
     if (opts.priority) args.push(`priority:${opts.priority}`);
+    if (opts.recur) args.push(`recur:${opts.recur}`);
     if (opts.addDependencies?.length)
       args.push(`depends:${opts.addDependencies.join(",")}`);
     if (opts.deleteDependencies?.length)
@@ -193,6 +195,12 @@ export class TaskwarriorClient implements Taskwarrior {
   }
 
   async add(description: string, options?: AddOptions): Promise<Task> {
+    if (options?.recur && !options.due) {
+      throw new TaskwarriorError("A recurring task needs a due date", {
+        kind: "invalid-input",
+      });
+    }
+
     const args = [
       ...this.buildRcArgs({ verbose: "new-uuid" }),
       "add",
@@ -203,7 +211,7 @@ export class TaskwarriorClient implements Taskwarrior {
     ];
 
     const output = await this.run(args);
-    const match = output.match(/Created task ([0-9a-f-]{36})\./i);
+    const match = output.match(/Created task ([0-9a-f-]{36})/i);
     if (!match?.[1]) {
       throw new TaskwarriorError(
         `Unexpected output from "task add": ${JSON.stringify(output)}`,

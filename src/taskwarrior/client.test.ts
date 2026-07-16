@@ -129,3 +129,14 @@ test("adding a dependency that creates a cycle throws invalid-input", async () =
   await expect(promise).rejects.toHaveProperty("kind", "invalid-input");
   await expect(promise).rejects.toThrow(/circular dependency/i);
 });
+
+test("add with recur creates a recurring task", async () => {
+  const task = await tw.add("standup", { recur: "daily", due: "tomorrow" });
+  expect(task.recur).toBe("daily");
+});
+
+test("recur without a due date is rejected", async () => {
+  await expect(
+    tw.add("no due", { recur: "daily" }),
+  ).rejects.toHaveProperty("kind", "invalid-input");
+});

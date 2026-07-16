@@ -1,9 +1,9 @@
 import { test, expect } from "vitest";
 import { FakeTaskwarrior } from "../testing/fake-taskwarrior.js";
-import { Client } from "@modelcontextprotocol/sdk/client";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer } from "./index.js";
-import type { Taskwarrior } from "../taskwarrior/client.js";
+import type { Taskwarrior } from "../taskwarrior/index.js";
 import type { Timewarrior } from "../timewarrior/client.js";
 
 async function connect(
@@ -21,12 +21,19 @@ async function connect(
   return { client };
 }
 
-test("daily-triage assembles a prompt from current tasks", async () => {
+test("daily-triage assembles an actionable, project-grouped prompt", async () => {
   const fake = new FakeTaskwarrior();
-  await fake.add("overdue thing", { due: "2020-01-01" });
+  const task = await fake.add("overdue thing", {
+    due: "2020-01-01",
+    project: "home",
+  });
   const { client } = await connect(fake);
 
   const res = await client.getPrompt({ name: "daily-triage" });
   const text = (res.messages[0] as any).content.text;
+
   expect(text).toContain("overdue thing");
+  expect(text).toContain(task.uuid);
+  expect(text).toContain("home:");
+  expect(text).toContain("Which should I tackle now?");
 });

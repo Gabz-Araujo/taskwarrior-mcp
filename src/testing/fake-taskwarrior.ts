@@ -14,6 +14,11 @@ export class FakeTaskwarrior implements Taskwarrior {
   private counter = 0;
 
   async add(description: string, options?: AddOptions): Promise<Task> {
+    if (options?.recur && !options.due) {
+      throw new TaskwarriorError("A recurring task needs a due date", {
+        kind: "invalid-input",
+      });
+    }
     this.counter++;
     const uuid = `00000000-0000-0000-0000-${String(this.counter).padStart(12, "0")}`;
     const task: Task = {
@@ -26,6 +31,7 @@ export class FakeTaskwarrior implements Taskwarrior {
       ...(options?.due ? { due: options.due } : {}),
       ...(options?.priority ? { priority: options.priority } : {}),
       ...(options?.tags ? { tags: options.tags } : {}),
+      ...(options?.recur ? { recur: options.recur } : {}),
     };
 
     this.tasks.set(uuid, task);

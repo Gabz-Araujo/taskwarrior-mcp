@@ -40,6 +40,7 @@ export type AddOptions = {
   due?: string;
   priority?: Priority;
   tags?: string[];
+  recur?: string;
 };
 
 export type ListFilter = {

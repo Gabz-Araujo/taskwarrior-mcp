@@ -18,6 +18,12 @@ export const addTaskShape = {
     .array(z.string())
     .optional()
     .describe("Tags to attach, without the leading +"),
+  recur: z
+    .string()
+    .optional()
+    .describe(
+      "Make the task recur, e.g. 'daily', 'weekly', 'monthly', or ISO 'P1W'. Requires 'due'.",
+    ),
 };
 
 export const listTasksShape = {
