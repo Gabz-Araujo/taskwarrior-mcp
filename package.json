@@ -1,7 +1,27 @@
 {
   "name": "taskwarrior-mcp",
   "version": "0.1.0",
-  "description": "",
+  "description": "MCP server for Taskwarrior, with optional Timewarrior time reporting.",
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "taskwarrior",
+    "timewarrior",
+    "tasks",
+    "gtd"
+  ],
+  "homepage": "https://github.com/Gabz-Araujo/taskwarrior-mcp#readme",
+  "bugs": "https://github.com/Gabz-Araujo/taskwarrior-mcp/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gabz-Araujo/taskwarrior-mcp.git"
+  },
+  "license": "MIT",
+  "author": "Gabz-Araujo <g.cardoso.araujo@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "bin": {
     "taskwarrior-mcp": "dist/index.js"
@@ -16,10 +36,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "devDependencies": {
     "@types/node": "^26.1.1",
     "typescript": "^7.0.2",

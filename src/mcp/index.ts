@@ -3,6 +3,7 @@ import type { Taskwarrior } from "../taskwarrior/index.js";
 import { registerTools, registerTimeTools } from "./tools.js";
 import type { Timewarrior } from "../timewarrior/client.js";
 import { registerPrompts } from "./prompts.js";
+import { registerResources } from "./resources.js";
 
 export function createServer(
   tw: Taskwarrior,
@@ -14,6 +15,7 @@ export function createServer(
   });
   registerTools(server, tw);
   registerPrompts(server, tw);
+  registerResources(server, tw);
   if (options.timewarrior) {
     registerTimeTools(server, options.timewarrior);
   }

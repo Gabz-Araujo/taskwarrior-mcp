@@ -1,5 +1,5 @@
 {
-  description = "Node environment  for the project";
+  description = "Development environment for taskwarrior-mcp";
 
   # Pinned separately so the machine's nixos-unstable bumps don't shift this toolchain.
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -14,7 +14,7 @@
       pkgs = nixpkgs.legacyPackages.${system};
     in {
       default = pkgs.mkShell {
-        name = "data2";
+        name = "taskwarrior-mcp";
 
         packages = with pkgs; [
           # nixpkgs 24.14.0 vs .nvmrc's 24.13.0 — patch drift is harmless.
