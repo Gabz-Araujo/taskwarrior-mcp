@@ -37,3 +37,19 @@ test("daily-triage assembles an actionable, project-grouped prompt", async () =>
   expect(text).toContain("home:");
   expect(text).toContain("Which should I tackle now?");
 });
+
+test("weekly-review scopes to the given project", async () => {
+  const fake = new FakeTaskwarrior();
+  await fake.add("work task", { project: "work" });
+  await fake.add("home task", { project: "home" });
+  const { client } = await connect(fake);
+
+  const res = await client.getPrompt({
+    name: "weekly-review",
+    arguments: { project: "work" },
+  });
+  const text = (res.messages[0] as any).content.text;
+
+  expect(text).toContain("work task");
+  expect(text).not.toContain("home task");
+});
