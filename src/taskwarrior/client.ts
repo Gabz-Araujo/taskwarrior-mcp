@@ -6,6 +6,8 @@ import type {
   ListOptions,
 } from "./types.js";
 import { TaskSchema, UUID_RE } from "./types.js";
+import type { UdaDef, UdaType } from "./udas.js";
+import { assertKnownUdaNames, serializeUdas } from "./udas.js";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -74,6 +76,8 @@ export interface Taskwarrior {
   addDependencies(uuid: string, dependencies: string[]): Promise<Task>;
 
   removeDependencies(uuid: string, dependencies: string[]): Promise<Task>;
+
+  discoverUdas(): Promise<UdaDef[]>;
 }
 
 export class TaskwarriorClient implements Taskwarrior {
@@ -82,6 +86,7 @@ export class TaskwarriorClient implements Taskwarrior {
   private readonly dataLocation: string | undefined;
   private readonly timeoutMs: number;
   private readonly userOverrides: Record<string, string>;
+  private udaRegistry: UdaDef[] | undefined;
 
   private static readonly FORCED_OVERRIDES: Record<string, string> = {
     confirmation: "off",
@@ -184,6 +189,23 @@ export class TaskwarriorClient implements Taskwarrior {
       );
     }
 
+    const registry = await this.ensureUdas();
+    const known = new Set(registry.map((uda) => uda.name));
+    if (Array.isArray(parsed) && known.size > 0) {
+      for (const raw of parsed) {
+        if (!raw || typeof raw !== "object") continue;
+        const record = raw as Record<string, unknown>;
+        const udas: Record<string, string | number> = {};
+        for (const name of known) {
+          const value = record[name];
+          if (typeof value === "string" || typeof value === "number") {
+            udas[name] = value;
+          }
+        }
+        if (Object.keys(udas).length > 0) record.udas = udas;
+      }
+    }
+
     const result = TaskArraySchema.safeParse(parsed);
     if (!result.success) {
       throw new TaskwarriorError(
@@ -201,10 +223,12 @@ export class TaskwarriorClient implements Taskwarrior {
       });
     }
 
+    const registry = await this.ensureUdas();
     const args = [
       ...this.buildRcArgs({ verbose: "new-uuid" }),
       "add",
       ...this.serializeAttributes(options ?? {}),
+      ...serializeUdas(options?.udas, registry),
       ...(options?.tags ?? []).map((tag) => `+${tag}`),
       "--",
       description,
@@ -230,6 +254,9 @@ export class TaskwarriorClient implements Taskwarrior {
   }
 
   async list(filter?: ListFilter, options?: ListOptions): Promise<Task[]> {
+    if (filter?.udas) {
+      assertKnownUdaNames(Object.keys(filter.udas), await this.ensureUdas());
+    }
     const filterArgs = buildListFilterArgs(filter);
     const tasks = await this.export(filterArgs);
     const sorted = sortTasks(tasks, options?.sort);
@@ -246,7 +273,9 @@ export class TaskwarriorClient implements Taskwarrior {
       });
     }
 
+    const registry = await this.ensureUdas();
     const mods = this.serializeAttributes(options);
+    mods.push(...serializeUdas(options.udas, registry));
     for (const tag of options.addTags ?? []) mods.push(`+${tag}`);
     for (const tag of options.deleteTags ?? []) mods.push(`-${tag}`);
 
@@ -427,5 +456,54 @@ export class TaskwarriorClient implements Taskwarrior {
     if (verified.length === 0) return task;
 
     return this.modify(uuid, { deleteDependencies: verified });
+  }
+
+  async discoverUdas(): Promise<UdaDef[]> {
+    return this.ensureUdas();
+  }
+
+  private async ensureUdas(): Promise<UdaDef[]> {
+    if (this.udaRegistry) return this.udaRegistry;
+    try {
+      const namesOut = await this.run([...this.buildRcArgs(), "_udas"]);
+      const names = namesOut
+        .split("\n")
+        .map((name) => name.trim())
+        .filter(Boolean);
+
+      const defs: UdaDef[] = [];
+      for (const name of names) {
+        const type = await this.getConfig(`uda.${name}.type`);
+        const def: UdaDef = { name, type: (type || "string") as UdaType };
+        const label = await this.getConfig(`uda.${name}.label`);
+        if (label) def.label = label;
+        const values = await this.getConfig(`uda.${name}.values`);
+        if (values)
+          def.values = values
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean);
+        const fallback = await this.getConfig(`uda.${name}.default`);
+        if (fallback) def.default = fallback;
+        defs.push(def);
+      }
+      this.udaRegistry = defs;
+    } catch (error) {
+      console.error(
+        "UDA discovery failed; continuing with no custom fields:",
+        error,
+      );
+      this.udaRegistry = [];
+    }
+    return this.udaRegistry;
+  }
+
+  private async getConfig(key: string): Promise<string> {
+    try {
+      const out = await this.run([...this.buildRcArgs(), "_get", `rc.${key}`]);
+      return out.trim();
+    } catch {
+      return "";
+    }
   }
 }

@@ -6,7 +6,7 @@ import { createServer } from "./index.js";
 import type { Taskwarrior } from "../taskwarrior/index.js";
 
 async function connect(tw: Taskwarrior = new FakeTaskwarrior()) {
-  const server = createServer(tw);
+  const server = await createServer(tw);
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1.0.0" });

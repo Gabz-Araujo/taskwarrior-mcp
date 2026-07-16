@@ -10,7 +10,7 @@ async function connect(
   tw: Taskwarrior = new FakeTaskwarrior(),
   timewarrior?: Timewarrior,
 ) {
-  const server = createServer(tw, timewarrior ? { timewarrior } : {});
+  const server = await createServer(tw, timewarrior ? { timewarrior } : {});
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1.0.0" });

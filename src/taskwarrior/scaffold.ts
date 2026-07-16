@@ -8,6 +8,7 @@ export type StepSpec = {
   due?: string;
   tags?: string[];
   dependsOn?: string[];
+  udas?: Record<string, string | number>;
 };
 
 export type CreateProjectSpec = {
@@ -78,6 +79,7 @@ function buildAddOptions(project: string, step: StepSpec): AddOptions {
     ...(step.priority ? { priority: step.priority } : {}),
     ...(step.due ? { due: step.due } : {}),
     ...(step.tags ? { tags: step.tags } : {}),
+    ...(step.udas ? { udas: step.udas } : {}),
   };
 }
 

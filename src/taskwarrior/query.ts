@@ -32,6 +32,12 @@ export function buildListFilterArgs(filter?: ListFilter): string[] {
     args.push(dueAfter);
   }
 
+  if (filter?.udas) {
+    for (const [name, value] of Object.entries(filter.udas)) {
+      args.push(`${name}:${value}`);
+    }
+  }
+
   return args;
 }
 

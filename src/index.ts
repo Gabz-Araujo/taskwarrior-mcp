@@ -32,7 +32,7 @@ if (process.env["TASKDATA"]) options.dataLocation = process.env["TASKDATA"];
 
 const tw = new TaskwarriorClient(options);
 const timewarrior = await detectTimewarrior();
-const server = createServer(tw, {
+const server = await createServer(tw, {
   version,
   ...(timewarrior ? { timewarrior } : {}),
 });

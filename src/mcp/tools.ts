@@ -4,13 +4,14 @@ import type { Taskwarrior } from "../taskwarrior/index.js";
 import { TaskwarriorError } from "../taskwarrior/index.js";
 import {
   addDependenciesShape,
-  addTaskShape,
   annotateTaskShape,
+  buildAddTaskShape,
+  buildCreateProjectShape,
+  buildListTasksShape,
+  buildModifyTaskShape,
+  buildWhatsNextShape,
   createProjectOutputShape,
-  createProjectShape,
   denotateTaskShape,
-  listTasksShape,
-  modifyTaskShape,
   removeDependenciesShape,
   taskListOutputShape,
   taskNullableOutputShape,
@@ -18,10 +19,15 @@ import {
   timeSummaryOutputShape,
   timeSummaryShape,
   uuidShape,
-  whatsNextShape,
 } from "./schemas.js";
 import type { Timewarrior } from "../timewarrior/client.js";
-import { createProject } from "../taskwarrior/scaffold.js";
+import { createProject, type StepSpec } from "../taskwarrior/scaffold.js";
+import type { UdaDef } from "../taskwarrior/udas.js";
+import type {
+  AddOptions,
+  ListFilter,
+  ModifyOptions,
+} from "../taskwarrior/types.js";
 
 const GUIDANCE: Partial<Record<string, string>> = {
   "not-found": "Call list_tasks or get_task to find valid uuids",
@@ -66,13 +72,17 @@ async function guard<T>(
   }
 }
 
-export function registerTools(server: McpServer, tw: Taskwarrior): void {
+export function registerTools(
+  server: McpServer,
+  tw: Taskwarrior,
+  udas: UdaDef[],
+): void {
   server.registerTool(
     "add_task",
     {
       title: "Add task",
       description: "Create a new taskwarrior task.",
-      inputSchema: addTaskShape,
+      inputSchema: buildAddTaskShape(udas),
       outputSchema: taskOutputShape,
       annotations: {
         readOnlyHint: false,
@@ -82,7 +92,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     },
     async ({ description, ...options }) =>
       guard(
-        () => tw.add(description, compact(options)),
+        () => tw.add(description, compact(options) as AddOptions),
         (task) => ({ task }),
       ),
   );
@@ -95,13 +105,17 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
         "List tasks with optional filtering (status, project, tags, due range), " +
         "sorting, and a result limit. Defaults to pending tasks and returns at " +
         "most 100 unless a smaller or larger limit is given.",
-      inputSchema: listTasksShape,
+      inputSchema: buildListTasksShape(udas),
       outputSchema: taskListOutputShape,
       annotations: { readOnlyHint: true },
     },
     async ({ limit, sort, ...filter }) =>
       guard(
-        () => tw.list(compact(filter), compact({ limit: limit ?? 100, sort })),
+        () =>
+          tw.list(
+            compact(filter) as ListFilter,
+            compact({ limit: limit ?? 100, sort }),
+          ),
         (tasks) => ({ tasks }),
       ),
   );
@@ -111,7 +125,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     {
       title: "Modify task",
       description: "Modify an existing task identified by uuid.",
-      inputSchema: modifyTaskShape,
+      inputSchema: buildModifyTaskShape(udas),
       outputSchema: taskOutputShape,
       annotations: {
         readOnlyHint: false,
@@ -121,7 +135,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     },
     async ({ uuid, ...options }) =>
       guard(
-        () => tw.modify(uuid, compact(options)),
+        () => tw.modify(uuid, compact(options) as ModifyOptions),
         (task) => ({ task }),
       ),
   );
@@ -189,7 +203,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       title: "What's next",
       description:
         "Get the highest-urgency pending tasks to focus on next, optionally scoped by project or tags.",
-      inputSchema: whatsNextShape,
+      inputSchema: buildWhatsNextShape(udas),
       outputSchema: taskListOutputShape,
       annotations: { readOnlyHint: true },
     },
@@ -197,7 +211,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       guard(
         () =>
           tw.list(
-            { status: "pending", ...compact(scope) },
+            { status: "pending", ...(compact(scope) as ListFilter) },
             { sort: "urgency", limit: limit ?? 10 },
           ),
         (tasks) => ({ tasks }),
@@ -331,7 +345,7 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       title: "Create project",
       description:
         "Scaffold a project as a dependency graph of steps in one call. Each step has a local 'ref'; 'dependsOn' lists the refs it blocks on. Parallel branches that converge are supported. Returns a per-step result (created task or error).",
-      inputSchema: createProjectShape,
+      inputSchema: buildCreateProjectShape(udas),
       outputSchema: createProjectOutputShape,
       annotations: {
         readOnlyHint: false,
@@ -342,7 +356,10 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
     async ({ project, steps }) =>
       guard(
         () =>
-          createProject(tw, { project, steps: steps.map((s) => compact(s)) }),
+          createProject(tw, {
+            project,
+            steps: steps.map((s) => compact(s)) as StepSpec[],
+          }),
         (result) => ({ ...result }),
       ),
   );

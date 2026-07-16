@@ -8,10 +8,17 @@ import type {
 } from "../taskwarrior/index.js";
 import { TaskwarriorError } from "../taskwarrior/index.js";
 import { sortTasks } from "../taskwarrior/query.js";
+import type { UdaDef } from "../taskwarrior/udas.js";
 
 export class FakeTaskwarrior implements Taskwarrior {
   private tasks = new Map<string, Task>();
   private counter = 0;
+
+  constructor(private readonly udaDefs: UdaDef[] = []) {}
+
+  async discoverUdas(): Promise<UdaDef[]> {
+    return this.udaDefs;
+  }
 
   async add(description: string, options?: AddOptions): Promise<Task> {
     if (options?.recur && !options.due) {
@@ -32,6 +39,7 @@ export class FakeTaskwarrior implements Taskwarrior {
       ...(options?.priority ? { priority: options.priority } : {}),
       ...(options?.tags ? { tags: options.tags } : {}),
       ...(options?.recur ? { recur: options.recur } : {}),
+      ...(options?.udas ? { udas: options.udas } : {}),
     };
 
     this.tasks.set(uuid, task);
@@ -44,6 +52,13 @@ export class FakeTaskwarrior implements Taskwarrior {
       if (status !== "all" && task.status !== status) return false;
       if (filter?.project && task.project !== filter.project) return false;
       if (filter?.tags && !filter.tags.every((tag) => task.tags?.includes(tag)))
+        return false;
+      if (
+        filter?.udas &&
+        !Object.entries(filter.udas).every(
+          ([key, value]) => String(task.udas?.[key]) === String(value),
+        )
+      )
         return false;
       return true;
     });
@@ -84,6 +99,10 @@ export class FakeTaskwarrior implements Taskwarrior {
       for (const d of options.addDependencies ?? []) deps.add(d);
       for (const d of options.deleteDependencies ?? []) deps.delete(d);
       modifiedTask.depends = [...deps];
+    }
+
+    if (options.udas) {
+      modifiedTask.udas = { ...modifiedTask.udas, ...options.udas };
     }
 
     this.tasks.set(uuid, modifiedTask);

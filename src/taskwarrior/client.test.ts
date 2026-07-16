@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { TaskwarriorClient, TaskwarriorError } from "./client.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -162,5 +162,81 @@ test("createProject wires real dependencies in taskwarrior", async () => {
   expect(build?.project).toBe("launch");
   expect(build?.depends).toEqual(
     expect.arrayContaining([byRef.design.task.uuid, byRef.copy.task.uuid]),
+  );
+});
+
+function udaClient(): TaskwarriorClient {
+  const rcFile = join(dataLocation, "uda.taskrc");
+  writeFileSync(
+    rcFile,
+    [
+      `data.location=${dataLocation}`,
+      "uda.context.type=string",
+      "uda.context.label=Context",
+      "uda.context.values=work,home,errands",
+      "uda.estimate.type=numeric",
+      "uda.estimate.label=Estimate",
+    ].join("\n"),
+  );
+  return new TaskwarriorClient({ rcFile, dataLocation });
+}
+
+test("discoverUdas reads UDA definitions from the rc file", async () => {
+  const client = udaClient();
+  const udas = await client.discoverUdas();
+  const byName = Object.fromEntries(udas.map((u) => [u.name, u]));
+  expect(byName.context).toMatchObject({
+    name: "context",
+    type: "string",
+    label: "Context",
+    values: ["work", "home", "errands"],
+  });
+  expect(byName.estimate).toMatchObject({ name: "estimate", type: "numeric" });
+});
+
+test("add sets UDA values and reads them back on the task", async () => {
+  const client = udaClient();
+  const task = await client.add("with udas", {
+    udas: { context: "work", estimate: 3 },
+  });
+  expect(task.udas).toMatchObject({ context: "work", estimate: 3 });
+});
+
+test("add rejects a value outside a UDA's declared values", async () => {
+  const client = udaClient();
+  await expect(
+    client.add("bad enum", { udas: { context: "car" } }),
+  ).rejects.toHaveProperty("kind", "invalid-input");
+});
+
+test("add rejects an unknown UDA name", async () => {
+  const client = udaClient();
+  await expect(
+    client.add("bad name", { udas: { nope: "x" } }),
+  ).rejects.toHaveProperty("kind", "invalid-input");
+});
+
+test("export does not surface taskwarrior internal keys as udas", async () => {
+  const client = udaClient();
+  const task = await client.add("plain", {});
+  expect(task.udas).toBeUndefined();
+});
+
+test("list filters by a UDA value", async () => {
+  const client = udaClient();
+  await client.add("at work", { project: "ctxfilter", udas: { context: "work" } });
+  await client.add("at home", { project: "ctxfilter", udas: { context: "home" } });
+  const atWork = await client.list({
+    project: "ctxfilter",
+    udas: { context: "work" },
+  });
+  expect(atWork.map((task) => task.description)).toEqual(["at work"]);
+});
+
+test("list rejects an unknown UDA filter name", async () => {
+  const client = udaClient();
+  await expect(client.list({ udas: { nope: "x" } })).rejects.toHaveProperty(
+    "kind",
+    "invalid-input",
   );
 });

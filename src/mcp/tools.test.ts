@@ -9,6 +9,11 @@ import { expect, test, vi } from "vitest";
 import type { Taskwarrior } from "../taskwarrior/index.js";
 import type { Timewarrior } from "../timewarrior/client.js";
 import { FakeTimewarrior } from "../testing/fake-timewarrior.js";
+import type { UdaDef } from "../taskwarrior/udas.js";
+
+const UDAS: UdaDef[] = [
+  { name: "context", type: "string", values: ["work", "home"] },
+];
 
 function sc(res: any): any {
   return res.structuredContent;
@@ -22,7 +27,7 @@ async function connect(
   tw: Taskwarrior = new FakeTaskwarrior(),
   timewarrior?: Timewarrior,
 ) {
-  const server = createServer(tw, timewarrior ? { timewarrior } : {});
+  const server = await createServer(tw, timewarrior ? { timewarrior } : {});
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1.0.0" });
@@ -247,4 +252,59 @@ test("create_project scaffolds a dependency graph", async () => {
   const design = results.find((r: any) => r.ref === "design");
   expect(build.task.depends).toEqual([design.task.uuid]);
   expect(sc(res).project).toBe("launch");
+});
+
+test("add_task accepts udas when the registry is non-empty", async () => {
+  const { client } = await connect(new FakeTaskwarrior(UDAS));
+  const res = await client.callTool({
+    name: "add_task",
+    arguments: { description: "t", udas: { context: "work" } },
+  });
+  expect(res.isError ?? false).toBe(false);
+  expect(sc(res).task.udas).toEqual({ context: "work" });
+});
+
+test("create_project steps accept udas", async () => {
+  const { client } = await connect(new FakeTaskwarrior(UDAS));
+  const res = await client.callTool({
+    name: "create_project",
+    arguments: {
+      project: "p",
+      steps: [{ ref: "a", description: "A", udas: { context: "home" } }],
+    },
+  });
+  expect(res.isError ?? false).toBe(false);
+  const created = sc(res).results.find((r: any) => r.ref === "a");
+  expect(created.task.udas).toEqual({ context: "home" });
+});
+
+test("udas is advertised on add_task when UDAs exist", async () => {
+  const { client } = await connect(new FakeTaskwarrior(UDAS));
+  const { tools } = await client.listTools();
+  const addTask = tools.find((t) => t.name === "add_task")!;
+  expect(addTask.inputSchema.properties).toHaveProperty("udas");
+});
+
+test("udas is not advertised on add_task when the registry is empty", async () => {
+  const { client } = await connect();
+  const { tools } = await client.listTools();
+  const addTask = tools.find((t) => t.name === "add_task")!;
+  expect(addTask.inputSchema.properties).not.toHaveProperty("udas");
+});
+
+test("custom-fields resource lists the registry when UDAs exist", async () => {
+  const { client } = await connect(new FakeTaskwarrior(UDAS));
+  const res = await client.readResource({
+    uri: "taskwarrior://custom-fields",
+  });
+  const fields = JSON.parse((res.contents[0] as { text: string }).text);
+  expect(fields).toEqual(UDAS);
+});
+
+test("custom-fields resource is absent when no UDAs exist", async () => {
+  const { client } = await connect();
+  const { resources } = await client.listResources();
+  expect(resources.map((r) => r.uri)).not.toContain(
+    "taskwarrior://custom-fields",
+  );
 });

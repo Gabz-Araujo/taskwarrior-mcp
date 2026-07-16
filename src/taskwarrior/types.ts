@@ -31,6 +31,7 @@ export const TaskSchema = z.object({
     .array(z.object({ entry: z.string(), description: z.string() }))
     .optional(),
   depends: z.array(z.string()).optional(),
+  udas: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
@@ -41,6 +42,7 @@ export type AddOptions = {
   priority?: Priority;
   tags?: string[];
   recur?: string;
+  udas?: Record<string, string | number>;
 };
 
 export type ListFilter = {
@@ -49,6 +51,7 @@ export type ListFilter = {
   tags?: string[];
   dueBefore?: string;
   dueAfter?: string;
+  udas?: Record<string, string>;
 };
 
 export type ListSort = "urgency" | "due" | "entry";
@@ -67,4 +70,5 @@ export type ModifyOptions = {
   deleteTags?: string[];
   addDependencies?: string[];
   deleteDependencies?: string[];
+  udas?: Record<string, string | number>;
 };

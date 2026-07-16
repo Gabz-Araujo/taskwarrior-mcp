@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TaskSchema, UUID_RE } from "../taskwarrior/types.js";
+import type { UdaDef } from "../taskwarrior/udas.js";
 
 const DATE_HINT =
   "taskwarrior date syntax - e.g. 'friday', 'tomorrow', '+1d', '+2w' or an ISO date";
@@ -204,3 +205,74 @@ export const createProjectOutputShape = {
     ]),
   ),
 };
+
+export function udaInputSchema(registry: UdaDef[]): z.ZodTypeAny | undefined {
+  if (registry.length === 0) return undefined;
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const uda of registry) {
+    let field: z.ZodTypeAny;
+    if (uda.values && uda.values.length > 0) {
+      field = z.enum(uda.values as [string, ...string[]]);
+    } else if (uda.type === "numeric") {
+      field = z.number();
+    } else {
+      field = z.string();
+    }
+    shape[uda.name] = (
+      uda.label ? field.describe(uda.label) : field
+    ).optional();
+  }
+  return z.object(shape).optional().describe("User-defined custom fields.");
+}
+
+export function buildAddTaskShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  return { ...addTaskShape, ...(udas ? { udas } : {}) };
+}
+
+export function buildModifyTaskShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  return { ...modifyTaskShape, ...(udas ? { udas } : {}) };
+}
+
+export function buildListTasksShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  return { ...listTasksShape, ...(udas ? { udas } : {}) };
+}
+
+export function buildWhatsNextShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  return { ...whatsNextShape, ...(udas ? { udas } : {}) };
+}
+
+export function buildCreateProjectShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  const step = z.object({
+    ref: z
+      .string()
+      .describe(
+        "Local id for this step; referenced by other steps' dependsOn.",
+      ),
+    description: z.string().min(1).describe("The step's task description."),
+    priority: z.enum(["H", "M", "L"]).optional(),
+    due: z.string().optional().describe(`Due date. ${DATE_HINT}`),
+    tags: z.array(z.string()).optional(),
+    dependsOn: z
+      .array(z.string())
+      .optional()
+      .describe("Refs of steps this one depends on."),
+    ...(udas ? { udas } : {}),
+  });
+  return {
+    project: z
+      .string()
+      .min(1)
+      .describe(
+        "Project name applied to every step. Can use dots for hierarchy.",
+      ),
+    steps: z
+      .array(step)
+      .min(1)
+      .describe("The project's steps as a dependency graph."),
+  };
+}

@@ -1,6 +1,7 @@
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Taskwarrior, Task } from "../taskwarrior/index.js";
+import type { UdaDef } from "../taskwarrior/udas.js";
 
 function countByProject(tasks: Task[]): Map<string, number> {
   const counts = new Map<string, number>();
@@ -11,7 +12,11 @@ function countByProject(tasks: Task[]): Map<string, number> {
   return counts;
 }
 
-export function registerResources(server: McpServer, tw: Taskwarrior): void {
+export function registerResources(
+  server: McpServer,
+  tw: Taskwarrior,
+  udas: UdaDef[] = [],
+): void {
   server.registerResource(
     "projects",
     "taskwarrior://projects",
@@ -116,4 +121,26 @@ export function registerResources(server: McpServer, tw: Taskwarrior): void {
       };
     },
   );
+
+  if (udas.length > 0) {
+    server.registerResource(
+      "custom-fields",
+      "taskwarrior://custom-fields",
+      {
+        title: "Custom fields",
+        description:
+          "User-defined attributes (UDAs) available on tasks: name, type, label, and allowed values.",
+        mimeType: "application/json",
+      },
+      async (uri) => ({
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify(udas, null, 2),
+          },
+        ],
+      }),
+    );
+  }
 }
