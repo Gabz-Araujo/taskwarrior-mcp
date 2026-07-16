@@ -41,6 +41,7 @@ test("advertise all tools", async () => {
     "add_task",
     "annotate_task",
     "complete_task",
+    "create_project",
     "delete_task",
     "denotate_task",
     "get_task",
@@ -226,4 +227,24 @@ test("get_time_summary is present and works when timewarrior is configured", asy
   expect(res.isError).toBeFalsy();
   expect(sc(res).total).toBe(3600);
   expect(sc(res).byTag).toEqual({ coding: 3600 });
+});
+
+test("create_project scaffolds a dependency graph", async () => {
+  const { client } = await connect();
+  const res = await client.callTool({
+    name: "create_project",
+    arguments: {
+      project: "launch",
+      steps: [
+        { ref: "design", description: "Design" },
+        { ref: "build", description: "Build", dependsOn: ["design"] },
+      ],
+    },
+  });
+  expect(res.isError).toBeFalsy();
+  const results = sc(res).results;
+  const build = results.find((r: any) => r.ref === "build");
+  const design = results.find((r: any) => r.ref === "design");
+  expect(build.task.depends).toEqual([design.task.uuid]);
+  expect(sc(res).project).toBe("launch");
 });

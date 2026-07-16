@@ -3,6 +3,7 @@ import { TaskwarriorClient, TaskwarriorError } from "./client.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
+import { createProject } from "./scaffold.js";
 
 let dataLocation: string;
 let tw: TaskwarriorClient;
@@ -136,7 +137,30 @@ test("add with recur creates a recurring task", async () => {
 });
 
 test("recur without a due date is rejected", async () => {
-  await expect(
-    tw.add("no due", { recur: "daily" }),
-  ).rejects.toHaveProperty("kind", "invalid-input");
+  await expect(tw.add("no due", { recur: "daily" })).rejects.toHaveProperty(
+    "kind",
+    "invalid-input",
+  );
+});
+
+test("createProject wires real dependencies in taskwarrior", async () => {
+  const { results } = await createProject(tw, {
+    project: "launch",
+    steps: [
+      { ref: "design", description: "Design real" },
+      { ref: "copy", description: "Copy real" },
+      {
+        ref: "build",
+        description: "Build real",
+        dependsOn: ["design", "copy"],
+      },
+    ],
+  });
+
+  const byRef: any = Object.fromEntries(results.map((r) => [r.ref, r]));
+  const build = await tw.getByUuid(byRef.build.task.uuid);
+  expect(build?.project).toBe("launch");
+  expect(build?.depends).toEqual(
+    expect.arrayContaining([byRef.design.task.uuid, byRef.copy.task.uuid]),
+  );
 });

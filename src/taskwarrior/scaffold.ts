@@ -20,6 +20,7 @@ export type StepResult =
   | { ref: string; status: "error"; reason: string };
 
 export type CreateProjectResult = {
+  project: string;
   results: StepResult[];
 };
 
@@ -124,5 +125,5 @@ export async function createProject(
     results.push({ ref: step.ref, status: "created", task: finalTask });
   }
 
-  return { results };
+  return { project: spec.project, results };
 }

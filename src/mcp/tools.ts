@@ -6,6 +6,8 @@ import {
   addDependenciesShape,
   addTaskShape,
   annotateTaskShape,
+  createProjectOutputShape,
+  createProjectShape,
   denotateTaskShape,
   listTasksShape,
   modifyTaskShape,
@@ -19,6 +21,7 @@ import {
   whatsNextShape,
 } from "./schemas.js";
 import type { Timewarrior } from "../timewarrior/client.js";
+import { createProject } from "../taskwarrior/scaffold.js";
 
 const GUIDANCE: Partial<Record<string, string>> = {
   "not-found": "Call list_tasks or get_task to find valid uuids",
@@ -319,6 +322,28 @@ export function registerTools(server: McpServer, tw: Taskwarrior): void {
       guard(
         () => tw.removeDependencies(uuid, dependencies),
         (task) => ({ task }),
+      ),
+  );
+
+  server.registerTool(
+    "create_project",
+    {
+      title: "Create project",
+      description:
+        "Scaffold a project as a dependency graph of steps in one call. Each step has a local 'ref'; 'dependsOn' lists the refs it blocks on. Parallel branches that converge are supported. Returns a per-step result (created task or error).",
+      inputSchema: createProjectShape,
+      outputSchema: createProjectOutputShape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async ({ project, steps }) =>
+      guard(
+        () =>
+          createProject(tw, { project, steps: steps.map((s) => compact(s)) }),
+        (result) => ({ ...result }),
       ),
   );
 }

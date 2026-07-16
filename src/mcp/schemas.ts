@@ -157,3 +157,50 @@ export const timeSummaryOutputShape = {
   total: z.number(),
   byTag: z.record(z.string(), z.number()),
 };
+
+export const createProjectShape = {
+  project: z
+    .string()
+    .min(1)
+    .describe(
+      "Project name applied to every step. Can use dots for hierarchy.",
+    ),
+  steps: z
+    .array(
+      z.object({
+        ref: z
+          .string()
+          .describe(
+            "Local id for this step; referenced by other steps' dependsOn.",
+          ),
+        description: z.string().min(1).describe("The step's task description."),
+        priority: z.enum(["H", "M", "L"]).optional(),
+        due: z.string().optional().describe(`Due date. ${DATE_HINT}`),
+        tags: z.array(z.string()).optional(),
+        dependsOn: z
+          .array(z.string())
+          .optional()
+          .describe("Refs of steps this one depends on."),
+      }),
+    )
+    .min(1)
+    .describe("The project's steps as a dependency graph."),
+};
+
+export const createProjectOutputShape = {
+  project: z.string(),
+  results: z.array(
+    z.union([
+      z.object({
+        ref: z.string(),
+        status: z.literal("created"),
+        task: TaskSchema,
+      }),
+      z.object({
+        ref: z.string(),
+        status: z.literal("error"),
+        reason: z.string(),
+      }),
+    ]),
+  ),
+};
