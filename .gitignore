@@ -1,5 +1,6 @@
 node_modules/
 dist/
+result
 .direnv/
 docs/
 **/.claude/settings.local.json

@@ -1,5 +1,5 @@
 {
-  "name": "taskwarrior-mcp",
+  "name": "@gabz-araujo/taskwarrior-mcp",
   "version": "0.1.0",
   "description": "MCP server for Taskwarrior, with optional Timewarrior time reporting.",
   "keywords": [
@@ -31,6 +31,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

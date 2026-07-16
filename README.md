@@ -1,5 +1,7 @@
 # taskwarrior-mcp
 
+[![CI](https://github.com/Gabz-Araujo/taskwarrior-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Gabz-Araujo/taskwarrior-mcp/actions/workflows/ci.yml)
+
 An [MCP](https://modelcontextprotocol.io) server for [Taskwarrior](https://taskwarrior.org), with optional time reporting from [Timewarrior](https://timewarrior.net). It lets an MCP client (Claude Desktop, Claude Code, etc.) create, query, prioritise, and review your tasks.
 
 ## Requirements
@@ -11,35 +13,41 @@ An [MCP](https://modelcontextprotocol.io) server for [Taskwarrior](https://taskw
 
 ## Install
 
-```bash
-npm install
-npm run build
-```
-
-## Usage
-
-The server runs over stdio; your MCP client launches it. Point the client at the built entry:
+Published on npm — no clone or build required. Point your MCP client at it with `npx`:
 
 ```json
 {
   "mcpServers": {
     "taskwarrior": {
-      "command": "node",
-      "args": ["/absolute/path/to/taskwarrior-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "@gabz-araujo/taskwarrior-mcp"]
     }
   }
 }
 ```
 
-Optional environment variables: `TASKWARRIOR_PATH`, `TASKRC`, `TASKDATA`, `TIMEWARRIOR_PATH`. With none set, the server uses your existing Taskwarrior data.
+Or run it with Nix (bundles Taskwarrior + Timewarrior):
+
+```bash
+nix run github:Gabz-Araujo/taskwarrior-mcp
+```
+
+The server runs over stdio; your MCP client launches it. Optional environment variables: `TASKWARRIOR_PATH`, `TASKRC`, `TASKDATA`, `TIMEWARRIOR_PATH`. With none set, the server uses your existing Taskwarrior data.
+
+### From source
+
+```bash
+npm install && npm run build
+# then point the client at: node /absolute/path/to/dist/index.js
+```
 
 ## Capabilities
 
-**Tools** — add, list, get, modify, complete, delete, start, stop, annotate/denotate, add/remove dependencies, and `whats_next` (urgency-ranked). Recurring tasks are supported on creation. When Timewarrior is available, `get_time_summary` is also exposed.
+**Tools** — add, list, get, modify, complete, delete, start, stop, annotate/denotate, add/remove dependencies, `whats_next` (urgency-ranked), `next_action` (the single ready task to do now), and `create_project` (scaffold a dependency graph in one call). User-defined attributes (UDAs) are supported on add/modify/filter when defined. Recurring tasks are supported on creation. When Timewarrior is available, `get_time_summary` is also exposed.
 
-**Prompts** — `daily-triage` and `weekly-review` (GTD-style reviews).
+**Prompts** — `daily-triage`, `weekly-review`, `plan-project`, `unblock`, `GTD`, and `PARA`.
 
-**Resources** — `taskwarrior://projects`, `taskwarrior://project/{name}`, `taskwarrior://stats`.
+**Resources** — `taskwarrior://projects`, `taskwarrior://project/{name}`, `taskwarrior://stats`, and `taskwarrior://custom-fields` (when UDAs are defined).
 
 ## Time tracking
 
