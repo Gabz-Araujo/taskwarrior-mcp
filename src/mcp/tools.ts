@@ -9,8 +9,10 @@ import {
   buildCreateProjectShape,
   buildListTasksShape,
   buildModifyTaskShape,
+  buildNextActionShape,
   buildWhatsNextShape,
   createProjectOutputShape,
+  nextActionOutputShape,
   denotateTaskShape,
   removeDependenciesShape,
   taskListOutputShape,
@@ -22,6 +24,10 @@ import {
 } from "./schemas.js";
 import type { Timewarrior } from "../timewarrior/client.js";
 import { createProject, type StepSpec } from "../taskwarrior/scaffold.js";
+import {
+  nextAction,
+  type NextActionOptions,
+} from "../taskwarrior/next-action.js";
 import type { UdaDef } from "../taskwarrior/udas.js";
 import type {
   AddOptions,
@@ -360,6 +366,23 @@ export function registerTools(
             project,
             steps: steps.map((s) => compact(s)) as StepSpec[],
           }),
+        (result) => ({ ...result }),
+      ),
+  );
+
+  server.registerTool(
+    "next_action",
+    {
+      title: "Next action",
+      description:
+        "The single highest-urgency actionable (ready, unblocked) task to do now, with the signals that justify it. Returns null when nothing is ready.",
+      inputSchema: buildNextActionShape(udas),
+      outputSchema: nextActionOutputShape,
+      annotations: { readOnlyHint: true },
+    },
+    async (args) =>
+      guard(
+        () => nextAction(tw, compact(args) as NextActionOptions),
         (result) => ({ ...result }),
       ),
   );

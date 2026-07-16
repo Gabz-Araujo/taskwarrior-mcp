@@ -52,6 +52,7 @@ test("advertise all tools", async () => {
     "get_task",
     "list_tasks",
     "modify_task",
+    "next_action",
     "remove_dependencies",
     "start_task",
     "stop_task",
@@ -290,6 +291,26 @@ test("udas is not advertised on add_task when the registry is empty", async () =
   const { tools } = await client.listTools();
   const addTask = tools.find((t) => t.name === "add_task")!;
   expect(addTask.inputSchema.properties).not.toHaveProperty("udas");
+});
+
+test("next_action returns the ready task with why signals", async () => {
+  const fake = new FakeTaskwarrior();
+  const blocker = await fake.add("do first");
+  const blocked = await fake.add("do later");
+  await fake.addDependencies(blocked.uuid, [blocker.uuid]);
+  const { client } = await connect(fake);
+
+  const res = await client.callTool({ name: "next_action", arguments: {} });
+  expect(res.isError ?? false).toBe(false);
+  expect(sc(res).action.uuid).toBe(blocker.uuid);
+  expect(sc(res).why.unblocks).toBe(1);
+});
+
+test("next_action returns null action when nothing is ready", async () => {
+  const { client } = await connect();
+  const res = await client.callTool({ name: "next_action", arguments: {} });
+  expect(res.isError ?? false).toBe(false);
+  expect(sc(res).action).toBeNull();
 });
 
 test("custom-fields resource lists the registry when UDAs exist", async () => {

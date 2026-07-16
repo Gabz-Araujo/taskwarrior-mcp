@@ -51,6 +51,8 @@ export type ListFilter = {
   tags?: string[];
   dueBefore?: string;
   dueAfter?: string;
+  endAfter?: string;
+  ready?: boolean;
   udas?: Record<string, string>;
 };
 

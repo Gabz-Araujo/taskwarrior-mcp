@@ -38,6 +38,14 @@ export function buildListFilterArgs(filter?: ListFilter): string[] {
     }
   }
 
+  if (filter?.endAfter) {
+    args.push(`end.after:${filter.endAfter}`);
+  }
+
+  if (filter?.ready) {
+    args.push("+READY");
+  }
+
   return args;
 }
 

@@ -60,6 +60,26 @@ test("weekly-review scopes to the given project", async () => {
   expect(text).not.toContain("home task");
 });
 
+test("weekly-review shows only recently completed tasks", async () => {
+  const fake = new FakeTaskwarrior();
+  const recent = await fake.add("recent done");
+  await fake.done(recent.uuid);
+  (await fake.getByUuid(recent.uuid))!.end = "20990101T000000Z";
+  const old = await fake.add("old done");
+  await fake.done(old.uuid);
+  (await fake.getByUuid(old.uuid))!.end = "20000101T000000Z";
+  const { client } = await connect(fake);
+
+  const res = await client.getPrompt({
+    name: "weekly-review",
+    arguments: {},
+  });
+  const text = (res.messages[0] as any).content.text;
+
+  expect(text).toContain("recent done");
+  expect(text).not.toContain("old done");
+});
+
 test("plan-project frames the goal in create_project shape with existing tasks", async () => {
   const fake = new FakeTaskwarrior();
   await fake.add("existing step", { project: "launch" });

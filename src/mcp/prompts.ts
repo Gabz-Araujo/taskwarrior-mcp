@@ -128,9 +128,11 @@ export function registerPrompts(
         ...scopeFilter,
       });
       const cutoff = sevenDaysAgoBasicIso();
-      const completed = (
-        await tw.list({ status: "completed", ...scopeFilter })
-      ).filter((t) => t.end !== undefined && t.end >= cutoff);
+      const completed = await tw.list({
+        status: "completed",
+        endAfter: cutoff,
+        ...scopeFilter,
+      });
 
       const scope = project ? ` for project "${project}"` : "";
       const text = [

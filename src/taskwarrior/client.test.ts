@@ -240,3 +240,31 @@ test("list rejects an unknown UDA filter name", async () => {
     "invalid-input",
   );
 });
+
+test("ready filter excludes tasks blocked by an open dependency", async () => {
+  const blocker = await tw.add("ready blocker");
+  const blocked = await tw.add("ready blocked");
+  await tw.addDependencies(blocked.uuid, [blocker.uuid]);
+
+  const ready = await tw.list({ ready: true });
+  const uuids = ready.map((t) => t.uuid);
+  expect(uuids).toContain(blocker.uuid);
+  expect(uuids).not.toContain(blocked.uuid);
+});
+
+test("endAfter filters completed tasks by end date", async () => {
+  const done = await tw.add("endafter done");
+  await tw.done(done.uuid);
+
+  const past = await tw.list({
+    status: "completed",
+    endAfter: "20000101T000000Z",
+  });
+  expect(past.map((t) => t.uuid)).toContain(done.uuid);
+
+  const future = await tw.list({
+    status: "completed",
+    endAfter: "20990101T000000Z",
+  });
+  expect(future.map((t) => t.uuid)).not.toContain(done.uuid);
+});

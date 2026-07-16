@@ -51,6 +51,23 @@ test("status: all emits no status token", () => {
   expect(buildListFilterArgs({ status: "all" })).toEqual([]);
 });
 
+test("adds an end.after token", () => {
+  expect(
+    buildListFilterArgs({ status: "completed", endAfter: "20260709T000000Z" }),
+  ).toEqual(["status:completed", "end.after:20260709T000000Z"]);
+});
+
+test("ready: true emits the +READY virtual tag", () => {
+  expect(buildListFilterArgs({ ready: true })).toEqual([
+    "status:pending",
+    "+READY",
+  ]);
+});
+
+test("ready: false emits no readiness tag", () => {
+  expect(buildListFilterArgs({ ready: false })).toEqual(["status:pending"]);
+});
+
 test("sorts tasks by urgency", () => {
   const tasks = [
     task({ urgency: 1 }),

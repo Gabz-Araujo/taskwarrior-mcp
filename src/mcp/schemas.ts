@@ -206,6 +206,28 @@ export const createProjectOutputShape = {
   ),
 };
 
+export const nextActionShape = {
+  project: z
+    .string()
+    .optional()
+    .describe("The project name, dotted for hierarchy, e.g. 'personal.work'"),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe("Tags to filter by, without the leading +"),
+};
+
+export const nextActionOutputShape = {
+  action: TaskSchema.nullable(),
+  why: z
+    .object({
+      urgency: z.number(),
+      overdue: z.boolean(),
+      unblocks: z.number(),
+    })
+    .nullable(),
+};
+
 export function udaInputSchema(registry: UdaDef[]): z.ZodTypeAny | undefined {
   if (registry.length === 0) return undefined;
   const shape: Record<string, z.ZodTypeAny> = {};
@@ -243,6 +265,11 @@ export function buildListTasksShape(registry: UdaDef[]) {
 export function buildWhatsNextShape(registry: UdaDef[]) {
   const udas = udaInputSchema(registry);
   return { ...whatsNextShape, ...(udas ? { udas } : {}) };
+}
+
+export function buildNextActionShape(registry: UdaDef[]) {
+  const udas = udaInputSchema(registry);
+  return { ...nextActionShape, ...(udas ? { udas } : {}) };
 }
 
 export function buildCreateProjectShape(registry: UdaDef[]) {

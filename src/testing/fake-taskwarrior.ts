@@ -20,6 +20,14 @@ export class FakeTaskwarrior implements Taskwarrior {
     return this.udaDefs;
   }
 
+  private isReady(task: Task): boolean {
+    if (task.status !== "pending") return false;
+    return !(task.depends ?? []).some((uuid) => {
+      const dep = this.tasks.get(uuid);
+      return !dep || (dep.status !== "completed" && dep.status !== "deleted");
+    });
+  }
+
   async add(description: string, options?: AddOptions): Promise<Task> {
     if (options?.recur && !options.due) {
       throw new TaskwarriorError("A recurring task needs a due date", {
@@ -60,6 +68,12 @@ export class FakeTaskwarrior implements Taskwarrior {
         )
       )
         return false;
+      if (
+        filter?.endAfter &&
+        !(task.end !== undefined && task.end >= filter.endAfter)
+      )
+        return false;
+      if (filter?.ready && !this.isReady(task)) return false;
       return true;
     });
     const sorted = sortTasks(tasks, options?.sort);
