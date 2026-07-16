@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     exclude: [...configDefaults.exclude, ".direnv/**"],
     globalSetup: ["./vitest.global-setup.ts"],
+    setupFiles: ["./vitest.setup.ts"],
   },
 });

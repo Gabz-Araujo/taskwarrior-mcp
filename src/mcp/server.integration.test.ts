@@ -22,7 +22,11 @@ beforeAll(async () => {
   const transport = new StdioClientTransport({
     command: "node",
     args: ["dist/index.js"],
-    env: { PATH: process.env.PATH ?? "", TASKDATA: dataLocation },
+    env: {
+      PATH: process.env.PATH ?? "",
+      TASKDATA: dataLocation,
+      TASKRC: process.env.TASKRC ?? "",
+    },
   });
   client = new Client({
     name: "e2e",
