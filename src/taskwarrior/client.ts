@@ -307,7 +307,7 @@ export class TaskwarriorClient implements Taskwarrior {
         kind: "not-found",
       });
     }
-    await this.run([...this.buildRcArgs(), uuid, "done"]);
+    await this.run([...this.buildRcArgs({ hooks: "on" }), uuid, "done"]);
 
     const completedTask = await this.getByUuid(uuid);
     if (!completedTask) {
@@ -386,7 +386,7 @@ export class TaskwarriorClient implements Taskwarrior {
         kind: "not-found",
       });
     }
-    await this.run([...this.buildRcArgs(), uuid, "start"]);
+    await this.run([...this.buildRcArgs({ hooks: "on" }), uuid, "start"]);
     const startedTask = await this.getByUuid(uuid);
     if (!startedTask) {
       throw new TaskwarriorError(
@@ -403,7 +403,7 @@ export class TaskwarriorClient implements Taskwarrior {
         kind: "not-found",
       });
     }
-    await this.run([...this.buildRcArgs(), uuid, "stop"]);
+    await this.run([...this.buildRcArgs({ hooks: "on" }), uuid, "stop"]);
     const stoppedTask = await this.getByUuid(uuid);
     if (!stoppedTask) {
       throw new TaskwarriorError(

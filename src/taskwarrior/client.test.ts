@@ -1,4 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  existsSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { TaskwarriorClient, TaskwarriorError } from "./client.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -129,6 +135,23 @@ test("adding a dependency that creates a cycle throws invalid-input", async () =
   const promise = tw.addDependencies(b.uuid, [a.uuid]);
   await expect(promise).rejects.toHaveProperty("kind", "invalid-input");
   await expect(promise).rejects.toThrow(/circular dependency/i);
+});
+
+test("start fires the on-modify hook (hooks are enabled for start/stop/done)", async () => {
+  const dl = mkdtempSync(join(tmpdir(), "tw-hook"));
+  const hooksDir = join(dl, "hooks");
+  mkdirSync(hooksDir, { recursive: true });
+  const marker = join(dl, "fired");
+  writeFileSync(
+    join(hooksDir, "on-modify.marker"),
+    `#!/bin/sh\nread old\nread new\nprintf '%s\\n' "$new"\necho x >> ${marker}\n`,
+    { mode: 0o755 },
+  );
+  const client = new TaskwarriorClient({ dataLocation: dl });
+  const t = await client.add("hooked");
+  await client.start(t.uuid);
+  expect(existsSync(marker)).toBe(true);
+  rmSync(dl, { recursive: true, force: true });
 });
 
 test("add with recur creates a recurring task", async () => {
