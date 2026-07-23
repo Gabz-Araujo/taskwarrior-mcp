@@ -80,6 +80,32 @@ test("weekly-review shows only recently completed tasks", async () => {
   expect(text).not.toContain("old done");
 });
 
+test("weekly-review includes journal harvest when journal arg is given", async () => {
+  const { client } = await connect();
+
+  const res = await client.getPrompt({
+    name: "weekly-review",
+    arguments: { journal: "Areas/journal" },
+  });
+  const text = (res.messages[0] as any).content.text;
+
+  expect(text).toContain("Journal harvest");
+  expect(text).toContain("Areas/journal");
+  expect(text).toContain("#star-seed");
+});
+
+test("weekly-review omits journal harvest without the journal arg", async () => {
+  const { client } = await connect();
+
+  const res = await client.getPrompt({
+    name: "weekly-review",
+    arguments: {},
+  });
+  const text = (res.messages[0] as any).content.text;
+
+  expect(text).not.toContain("Journal harvest");
+});
+
 test("plan-project frames the goal in create_project shape with existing tasks", async () => {
   const fake = new FakeTaskwarrior();
   await fake.add("existing step", { project: "launch" });

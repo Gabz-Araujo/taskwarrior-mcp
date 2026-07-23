@@ -117,9 +117,15 @@ export function registerPrompts(
           .string()
           .optional()
           .describe("Restrict the review to a single project."),
+        journal: z
+          .string()
+          .optional()
+          .describe(
+            "Path (relative to the notes vault) of a journal directory with daily notes; adds a journal-harvest step to the review.",
+          ),
       },
     },
-    async ({ project }) => {
+    async ({ project, journal }) => {
       const scopeFilter = project ? { project } : {};
       const pending = await tw.list({ status: "pending", ...scopeFilter });
       const overdue = await tw.list({
@@ -146,6 +152,15 @@ export function registerPrompts(
         "",
         `Completed in the last 7 days (${completed.length}):`,
         groupByProject(completed),
+        ...(journal
+          ? [
+              "",
+              `Journal harvest (daily notes under ${journal}):`,
+              "- Read this week's daily notes and the week's time summary.",
+              `- Write the weekly note (${journal}/YYYY/weekly/YYYY-Wnn.md): aggregated tracker, time trends by project, recurring difficulties.`,
+              "- Promote #star-seed entries into the story-bank KB (one STAR note each); consciously drop seeds that don't hold.",
+            ]
+          : []),
         "",
         "What progressed, what's stuck, and what should the top priorities be for the coming week?",
       ].join("\n");
